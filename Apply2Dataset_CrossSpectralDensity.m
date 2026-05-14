@@ -33,8 +33,8 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
     fprintf('Filter parameters: HighPass = %d Hz, LowPass = %d Hz\n', highpass_cutoff, lowpass_cutoff);
     
     % Initialize results matrix: NumTrials x NumChannels
-    cross_spectral_density_vals = zeros(eeg_struct.Num_trials, eeg_struct.Num_channels);
-
+    cross_spectral_density_vals = cell(eeg_struct.Num_trials, eeg_struct.Num_channels);
+    
     % Epoch duration in seconds
     speech_epoch_duration = size(eeg_struct.Data, 2) / eeg_struct.Fs;
 
@@ -79,13 +79,19 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
     ResultsCoherenceAnalysis.cross_spectral_density_vals = cross_spectral_density_vals;
     % Average across trials per channel and save in the main results structure.
     
+
+    %%% fix the calculation of by-channel means (across trials), so that it works for CSD 
+    
+
 %{
- %%% fix this channel means calculation, for cell array:  
+ 
     ResultsCoherenceAnalysis.cross_spectral_density_chanmeans = mean(cross_spectral_density, 1);
 
     % Save maximum coherence and corresponding channel
     [ResultsCoherenceAnalysis.max_val, ResultsCoherenceAnalysis.max_chan]  = ...
         max(ResultsCoherenceAnalysis.cross_spectral_density_chanmeans);
  
+ 
 %}
+
 end
