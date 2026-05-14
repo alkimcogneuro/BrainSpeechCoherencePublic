@@ -70,17 +70,22 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
             % Band-pass filter EEG epoch
             eeg_epoch_bpf = band_pass_filt(eeg_epoch, eeg_struct.Fs, highpass_cutoff, lowpass_cutoff);
             % Save the cross spectral density value for this trial and channel
-            cross_spectral_density_vals(eeg_trial_idx, ch_idx) = CrossSpectralDensity(Speech_Struct.envelope, eeg_epoch_bpf, Speech_Struct.fs, eeg_struct.Fs);
+            cross_spectral_density_vals{eeg_trial_idx, ch_idx} = CrossSpectralDensity(Speech_Struct.envelope, eeg_epoch_bpf, Speech_Struct.fs, eeg_struct.Fs);
+            %%        cross_spectral_density_vals(eeg_trial_idx, ch_idx) = CrossSpectralDensity(Speech_Struct.envelope, eeg_epoch_bpf, Speech_Struct.fs, eeg_struct.Fs);
         end
     end
 
     % Save trial-level CSD values in the main results structure.
     ResultsCoherenceAnalysis.cross_spectral_density_vals = cross_spectral_density_vals;
-
     % Average across trials per channel and save in the main results structure.
+    
+%{
+ %%% fix this channel means calculation, for cell array:  
     ResultsCoherenceAnalysis.cross_spectral_density_chanmeans = mean(cross_spectral_density, 1);
 
     % Save maximum coherence and corresponding channel
     [ResultsCoherenceAnalysis.max_val, ResultsCoherenceAnalysis.max_chan]  = ...
         max(ResultsCoherenceAnalysis.cross_spectral_density_chanmeans);
+ 
+%}
 end
