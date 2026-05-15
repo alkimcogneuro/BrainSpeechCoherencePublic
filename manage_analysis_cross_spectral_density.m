@@ -66,7 +66,7 @@ function [] = manage_analysis_cross_spectral_density(eeg_data_filenames, speech_
         % we collect those structures in an array called cross_spectral_density_results_structures.
         Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff);
         % sample call with adjusted parameters for epoching: 
-        % Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, StartTimeOffset=0.2, EpochDuration=1.8)
+        %%% Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, StartTimeOffset=0.2, EpochDuration=1.8)
         % Write each individual subject's result structure, contents of the variable Results_CSD_Analysis, to a file.
         save(cross_spectral_density_output_file, 'Results_CSD_Analysis');
     end
