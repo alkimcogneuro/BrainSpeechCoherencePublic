@@ -1,4 +1,4 @@
-function [CSD_one_sided] = CrossSpectralDensity(sig_speech, sig_eeg)    
+function [CSD_one_sided, CSD_freqs] = CrossSpectralDensity(sig_speech, sig_eeg, nfft)    
     % =========================================================
     % Cross-Spectral Density (CSD) Estimation
     % =========================================================
@@ -43,9 +43,6 @@ function [CSD_one_sided] = CrossSpectralDensity(sig_speech, sig_eeg)
     % 
     % Check if sig_speech/sig_eeg is a row or column vector and convert to column if necessary.
     % Reason:  below, we apply the Hann window, and the window is a column vector.  Element-wise multiplication of a row vector with a column vector would not work as intended.
-
-    size(sig_speech)
-    size(sig_eeg)
     
     if isrow(sig_speech)
         sig_speech = sig_speech';
@@ -55,8 +52,7 @@ function [CSD_one_sided] = CrossSpectralDensity(sig_speech, sig_eeg)
     end
 
     signal_len = length(sig_speech);   % calculate length of the signal (should be the same for both signals)
-    nfft = length(sig_speech);  % number of FFT points; determines frequency resolution and length of output spectrum.
-
+    
     % We'll set nfft (the number of FFT points) equal to signal length for simplicity.
     % If nfft > signal_len, the FFT will be zero-padded, 
     % which can make the spectrum look smoother but doesn't actually increase the true frequency resolution.
@@ -99,6 +95,8 @@ function [CSD_one_sided] = CrossSpectralDensity(sig_speech, sig_eeg)
     % We keep only the positive frequencies (bins 1 to nfft/2 + 1)
     % and we **double the magnitude** to conserve total power.
     % but do not double the DC (bin 1) and Nyquist (bin nfft/2 + 1) components, which are unique and not mirrored.
+    % The vector CSD_ons_sided will be a complex-valued vector of length nfft/2 + 1, 
+    % where each element corresponds to a specific frequency bin in the one-sided spectrum.  
     n_one_sided = nfft/2 + 1;
     CSD_one_sided = CSD(1:n_one_sided);
     CSD_one_sided(2:end-1) = 2 * CSD_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)    
