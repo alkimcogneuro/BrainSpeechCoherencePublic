@@ -1,3 +1,4 @@
+
 function [] = manage_analysis_cross_spectral_density(eeg_data_filenames, speech_files_path, highpass_cutoff, lowpass_cutoff)
     %
     % input arguments:
@@ -41,7 +42,7 @@ function [] = manage_analysis_cross_spectral_density(eeg_data_filenames, speech_
     % collect the results into an array of structures called cross_spectral_density_results_structures.
     %------------------------------------------------------------------------------------------------------%    
     for idx = 1:length(eeg_data_filenames)
-        fprintf ('Processing eeg data file %d:  %s\n', idx, eeg_data_filenames{idx})
+        fprintf ('Processing eeg data file %d:  %s\n', idx, eeg_data_filenames{idx});
         % fprintf ('output file %d:  %s\n', idx, cross_spectral_density_outputfiles(idx)) 
         eeg_data_file = eeg_data_filenames{idx};    % grab a single eeg data file name
         [eeg_filepath, eeg_filestem, eeg_fileext] = fileparts(eeg_data_file);   % segment the file path into its components
@@ -63,7 +64,9 @@ function [] = manage_analysis_cross_spectral_density(eeg_data_filenames, speech_
         cross_spectral_density_output_file = sprintf("%s/%s_cross_spectral_density_results_%d_%d_Hz.mat", eeg_filepath, eeg_filestem, highpass_cutoff, lowpass_cutoff);
         % Each call to Apply2Datset_CrossSpectralDensity returns a structure with the results for one EEG data set and one speech data set.
         % we collect those structures in an array called cross_spectral_density_results_structures.
-        Results_CSD_Analysis = Apply2Datset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, cross_spectral_density_output_file);
+        Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff);
+        % sample call with adjusted parameters for epoching: 
+        % Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, StartTimeOffset=0.2, EpochDuration=1.8)
         % Write each individual subject's result structure, contents of the variable Results_CSD_Analysis, to a file.
         save(cross_spectral_density_output_file, 'Results_CSD_Analysis');
     end
