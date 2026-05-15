@@ -95,8 +95,20 @@ function [CSD_one_sided, CSD_freqs] = CrossSpectralDensity(sig_speech, sig_eeg, 
     % We keep only the positive frequencies (bins 1 to nfft/2 + 1)
     % and we **double the magnitude** to conserve total power.
     % but do not double the DC (bin 1) and Nyquist (bin nfft/2 + 1) components, which are unique and not mirrored.
-    % The vector CSD_ons_sided will be a complex-valued vector of length nfft/2 + 1, 
+    % The vector CSD_one_sided will be a complex-valued vector of length nfft/2 + 1, 
     % where each element corresponds to a specific frequency bin in the one-sided spectrum.  
+
+    % what do we do here if nfft is an even number?  In that case, the Nyquist frequency is included in the one-sided spectrum and should not be doubled.  
+    % The code below accounts for this by only doubling the values from bin 2 to bin nfft/2 (inclusive), 
+    % and leaving bin 1 (DC) and bin nfft/2 + 1 (Nyquist) unchanged.
+    % buf if nfft is even, then the index into CSD, nff2/2 + 1 will be a non-inter value, which will cause an error. 
+    %  So we need to make sure nfft is an odd number, so that nfft/2 + 1 is an integer index into CSD.
+    % what is normally done here?
+    % In practice, nfft is often chosen to be a power of 2 for computational efficiency, which means it is often an even number.
+    % In Matlab, when nfft is even, the one-sided spectrum includes the Nyquist frequency at index nfft/2 + 1, and that component should not be doubled.
+    
+
+
     n_one_sided = nfft/2 + 1;
     CSD_one_sided = CSD(1:n_one_sided);
     CSD_one_sided(2:end-1) = 2 * CSD_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)    
