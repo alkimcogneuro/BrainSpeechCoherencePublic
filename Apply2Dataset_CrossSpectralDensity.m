@@ -65,11 +65,20 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
     
     num_samples_epoch = size(eeg_struct.Data, 2);  % the number of samples in the EEG epochs after any optional adjustments to the epoch duration.  This will be used to determine the duration of the speech epochs and to set the nfft parameter for the CSD calculation.
     % nfft is the number of points to use in the FFT calculation for the CSD estimation.
-    % we set nfft to be a power of 2 for computational efficiency; 
+    % we want to set nfft equal to the number of samples in the EEG epochs, so that we are computing the FFT on the full length of the analysis epochs.
+    % note that if nfft is a power of 2 for computational efficiency; 
     % this will slightly reduce the frequency resolution but is generally a good idea for FFT calculations.
     % for example, if the EEG epochs are 1500 samples long, then nfft will be set to 1024, which is the largest power of 2 less than or equal to 1500. 
     % This means that the FFT will be computed on the first 1024 samples of the EEG and speech epochs, and the remaining samples will be ignored for the CSD calculation. 
-    nfft = 2^floor(log2(num_samples_epoch));
+    % nfft = 2^floor(log2(num_samples_epoch));
+    nfft = num_samples_epoch;
+    % find the largest even number of samples that is less than or equal to num_samples_epoch, to ensure that nfft is even, 
+    % which is important for interpreting the frequency bins of the FFT output.
+    %if mod(nfft, 2) ~= 0
+    %    nfft = nfft - 1;  % make nfft even if it is odd
+    %end
+
+
     fprintf(' --Number of samples in EEG epochs after any optional adjustments: %d samples (%.2f seconds)\n', num_samples_epoch, num_samples_epoch / eeg_struct.Fs);
     fprintf(' --Number of FFT points (nfft) for CSD calculation: %d\n', nfft);  
     
