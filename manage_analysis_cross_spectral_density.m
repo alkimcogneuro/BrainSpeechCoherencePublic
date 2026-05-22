@@ -61,6 +61,8 @@ function [] = manage_analysis_cross_spectral_density(eeg_data_filenames, speech_
         % Create a filename for saving analaysis results to the same folder as the EEG data.
         % The name will be unique to the EEG data filename (e.g., include the subject ID and condition) 
         % and should also include the filter parameters used for the analysis, so that we can keep track of which results correspond to which analysis parameters.
+        %%%% should also include the epoching parameters, if we add those as optional arguments to Apply2Dataset_CrossSpectralDensity()
+        
         cross_spectral_density_output_file = sprintf("%s/%s_cross_spectral_density_results_%d_%d_Hz.mat", eeg_filepath, eeg_filestem, highpass_cutoff, lowpass_cutoff);
         % Each call to Apply2Datset_CrossSpectralDensity returns a structure with the results for one EEG data set and one speech data set.
         % we collect those structures in an array called cross_spectral_density_results_structures.
