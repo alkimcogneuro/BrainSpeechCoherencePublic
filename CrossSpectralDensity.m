@@ -1,4 +1,4 @@
-function [CSD_one_sided, CSD_freqs] = CrossSpectralDensity(sig_speech, sig_eeg, nfft)    
+function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided] = CrossSpectralDensity(sig_speech, sig_eeg, nfft)    
     % =========================================================
     % Cross-Spectral Density (CSD) Estimation
     % =========================================================
@@ -76,17 +76,22 @@ function [CSD_one_sided, CSD_freqs] = CrossSpectralDensity(sig_speech, sig_eeg, 
     % with a magnitude (distance from origin) and an angle (phase).
     sig_speech_dft = fft(sig_speech_win, nfft);
     sig_eeg_dft = fft(sig_eeg_win, nfft);
-    
+    % abs(sig_speech_dft(200:220))  
+    % abs(sig_eeg_dft(200:220))  
+
     % Compute the CSD for this segment: 
     % CSD of x and y is computed as S_xy(f) = X(f) * conj(Y(f)), 
     % where f indexes the frequency bins, X(f) is the DFT of x at frequency f, and Y(f) is the DFT of y at frequency f.
-    CSD = sig_speech_dft .* conj(sig_eeg_dft);    
+    % (A1 * e^(i theta1)) * (A2 * e^i theta2)
+    % = A1*A2 * e^(i(theta1 + theta2))     
+    CSD = sig_speech_dft .* conj(sig_eeg_dft);  
+    %%abs(CSD(200:220))  
     % Normalize the CSD by the number of samples and the window power to get a proper estimate of the cross-spectral density.
     % The window power is the sum of the squared window values, which accounts for the energy reduction due to windowing.
     window_power = sum(win.^2); % total power across the Hann window; use for normalization.
-    CSD = CSD / (signal_len * window_power);
+    CSD = CSD / (signal_len * window_power);    % normalize
 
-    %% --- Extract one-sided spectrum ---
+    % --- Extract one-sided spectrum ---
     % For real-valued signals, we only need the first half of the spectrum produced by the DFT.
     % we call that the one-sided spectrum.
     % The full The DFT output is "two-sided" and symmetric for real signals.
@@ -106,12 +111,38 @@ function [CSD_one_sided, CSD_freqs] = CrossSpectralDensity(sig_speech, sig_eeg, 
     % what is normally done here?
     % In practice, nfft is often chosen to be a power of 2 for computational efficiency, which means it is often an even number.
     % In Matlab, when nfft is even, the one-sided spectrum includes the Nyquist frequency at index nfft/2 + 1, and that component should not be doubled.
-    
 
+    %** can also store the power spectral density (PSD) for the two signals
+    % and then calculate the magnitude squared coherence (MSC) as MSC(f) = |S_xy(f)|^2 / (S_xx(f) * S_yy(f)), 
+    % where S_xx and S_yy are the PSDs of x and y, respectively.
+    % But we would need to be careful about how we calculate the PSDs, 
+    % to make sure they are properly normalized and comparable to the CSD values.
+    % In practice, the MSC is often calculated using Welch's method or other spectral estimation techniques that involve averaging across multiple segments of the data,
+    % rather than using a single FFT of the entire signal, to get a more stable estimate of coherence.
+    % but we are going to average the CSD values across trials and channels after we calculate them, 
+    % and then we'll also average the PSD's across trials and channels, 
+    % and then calculate the MSC from those averages, 
+    % which should give us a stable estimate of coherence without needing to segment the data for Welch's method.
+        
+    % this seems like the wrong way to calculate the frequency vector, but it is actually correct
+    % shouldn't we multiply the whole thing by the sampling rate to get frequencies in Hz?  No, because the sampling rate is not an argument to this function,
+    %  and we want the function to be flexible and work with any sampling rate.  So we return the frequencies in cycles per sample, and then the caller can convert to Hz by multiplying by the sampling rate if they want.
+    %  This will give us frequencies from 0 to Nyquist frequency (inclusive).
 
     n_one_sided = nfft/2 + 1;
+    PSD_speech = sig_speech_dft .* conj(sig_speech_dft) / (signal_len * window_power);  % power spectral density of the speech signal, normalized by signal length and window power
+    %%% abs(PSD_speech(5:20))
+    PSD_eeg = sig_eeg_dft .* conj(sig_eeg_dft) / (signal_len * window_power);  % power spectral density of the EEG signal, normalized by signal length and window power    
+    PSD_speech_one_sided = PSD_speech(1:n_one_sided);
+    PSD_speech_one_sided(2:end-1) = 2 * PSD_speech_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1),
+    %  because the upper half of the spectrum is just the complex conjugate of the lower half, and we want to conserve total power in the one-sided spectrum.
+    PSD_eeg_one_sided = PSD_eeg(1:n_one_sided);
+    PSD_eeg_one_sided(2:end-1) = 2 * PSD_eeg_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)
+
     CSD_one_sided = CSD(1:n_one_sided);
     CSD_one_sided(2:end-1) = 2 * CSD_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)    
+    
+
     %% If we want to extract magnitude and phase, we do this:
     % CSD_mag   = abs(CSD_one_sided);       % shared power at each frequency
     % CSD_phase = angle(CSD_one_sided);     % phase offset between x and y (radians)
