@@ -1,4 +1,4 @@
-function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided] = CrossSpectralDensity(sig_speech, sig_eeg, nfft)    
+function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossSpectralDensity(sig_speech, sig_eeg, nfft)    
     % =========================================================
     % Cross-Spectral Density (CSD) Estimation
     % =========================================================
@@ -88,8 +88,20 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided] = CrossSpectra
     %%abs(CSD(200:220))  
     % Normalize the CSD by the number of samples and the window power to get a proper estimate of the cross-spectral density.
     % The window power is the sum of the squared window values, which accounts for the energy reduction due to windowing.
-    window_power = sum(win.^2); % total power across the Hann window; use for normalization.
+    window_power = sum(win.^2); % Total power across the Hann window; use for normalization.
     CSD = CSD / (signal_len * window_power);    % normalize
+
+    % note that we normalize the values here, even though we will normalize the CSD valuies by dividing by the geometric mean of the PSDs 
+    % when we calculate the magnitude squared coherence (MSC) later,
+    % because we want the CSD values to be on the same scale as the PSD values, so that when we calculate the MSC, we get a meaningful value between 0 and 1.
+    % we'll normalize in case we want to examine the normalized CSD values prior to calculating the MSC, 
+    % or if we want to calculate the MSC using the CSD and PSD values from this function, 
+    % rather than calculating the MSC from the averaged CSD and PSD values across trials and channels.
+    % that should not affect the accuracy of the MSC values, 
+    % because the normalization factor will cancel out when we divide by the geometric mean of the PSDs, 
+    % as long as we apply the same normalization to both the CSD and the PSDs.
+
+
 
     % --- Extract one-sided spectrum ---
     % For real-valued signals, we only need the first half of the spectrum produced by the DFT.
@@ -112,8 +124,8 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided] = CrossSpectra
     % In practice, nfft is often chosen to be a power of 2 for computational efficiency, which means it is often an even number.
     % In Matlab, when nfft is even, the one-sided spectrum includes the Nyquist frequency at index nfft/2 + 1, and that component should not be doubled.
 
-    %** can also store the power spectral density (PSD) for the two signals
-    % and then calculate the magnitude squared coherence (MSC) as MSC(f) = |S_xy(f)|^2 / (S_xx(f) * S_yy(f)), 
+    % we will also store the power spectral density (PSD) for the two signals
+    % so that later, we can calculate the magnitude squared coherence (MSC) as MSC(f) = |S_xy(f)|^2 / (S_xx(f) * S_yy(f)), 
     % where S_xx and S_yy are the PSDs of x and y, respectively.
     % But we would need to be careful about how we calculate the PSDs, 
     % to make sure they are properly normalized and comparable to the CSD values.
@@ -142,6 +154,17 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided] = CrossSpectra
     CSD_one_sided = CSD(1:n_one_sided);
     CSD_one_sided(2:end-1) = 2 * CSD_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)    
     
+    % calculate the single trial magnitude squared PHASE coherence (MSPC) at each frequency, 
+    % which is a measure of the consistency of the phase relationship between the two signals across trials.
+    % MSPC(f) = |S_xy(f)|^2 / (S_xx(f) * S_yy(f)), where S_xy is the CSD, and S_xx and S_yy are the PSDs of the two signals.
+    % Note that the MSC is a value between 0 and 1, where 0 indicates no coherence (no consistent phase relationship) and 1 indicates perfect coherence (perfectly consistent phase relationship) at that frequency.
+
+    % I am going to call it MSPC for "magniude squared phase coherence".  
+    % In a later calculation, we will average the CSD values across trials and channels, 
+    % and then calculate the MSC from those averages, which should give us an estimate of coherence
+    % that reflects both consistency of phase and shared power across trials and channels.
+     
+    MSPC = abs(CSD_one_sided).^2 ./ (PSD_speech_one_sided .* PSD_eeg_one_sided);  % magnitude squared coherence at each frequency bin
 
     %% If we want to extract magnitude and phase, we do this:
     % CSD_mag   = abs(CSD_one_sided);       % shared power at each frequency
