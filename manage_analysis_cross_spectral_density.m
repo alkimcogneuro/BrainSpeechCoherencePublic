@@ -32,7 +32,6 @@ function [] = manage_analysis_cross_spectral_density(eeg_data_filenames, speech_
     %             Cond: [1688×1 string]
     %     OnsetLatency: [1688×1 double]
 
-
     %------------------------------------------------------------------------------------------------------%    
     % Iterate through all the EEG data files.
     % And run Apply2Dataset_CrossSpectralDensity() for each one, using the corresponding speech data. 
