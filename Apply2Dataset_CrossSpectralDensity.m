@@ -1,4 +1,4 @@
-function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_struct, speech_rawdata, highpass_cutoff, lowpass_cutoff, options)
+function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, speech_rawdata, highpass_cutoff, lowpass_cutoff, options)
     % ===============================================================================================================
     % This function applies Cross Spectral Density analysis to one EEG dataset. 
     %
@@ -11,7 +11,7 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
     % example call with optional arguments provided
     % Apply2Dataset_CrossSpectralDensity(eeg_struct, speech_rawdata, highpass_cutoff, lowpass_cutoff, StartTimeOffset=0.2, EpochDuration=1.8)
     % Returns:
-    %   ResultsCoherenceAnalysis: structure containing results
+    %   CoherenceResults: structure containing results
     % 
     % functionality to add:
     % think about how to flexibly adjust the width of the analysis epochs for speech and eeg
@@ -103,15 +103,15 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
     
     fprintf(' --Number of samples in EEG epochs after any optional adjustments: %d samples (%.2f seconds)\n', num_samples_epoch, num_samples_epoch / eeg_struct.Fs);
     fprintf(' --Number of FFT points (nfft) for CSD calculation: %d\n', nfft);  
-    ResultsCoherenceAnalysis = struct();  % Initialize
-    ResultsCoherenceAnalysis.analysis_type = 'cross_spectral_density';     
-    ResultsCoherenceAnalysis.highpass_cutoff = highpass_cutoff;    
-    ResultsCoherenceAnalysis.lowpass_cutoff = lowpass_cutoff;      
-    ResultsCoherenceAnalysis.eeg_Fs = eeg_struct.Fs;                               
-    ResultsCoherenceAnalysis.speech_Fs = speech_rawdata.Fs;                       
-    % ResultsCoherenceAnalysis. = eeg_struct.eeg_file_name; 
-    ResultsCoherenceAnalysis.label = eeg_struct.Subj_id;
-    ResultsCoherenceAnalysis.Chanlocs = eeg_struct.Chanlocs;  
+    CoherenceResults = struct();  % Initialize
+    CoherenceResults.analysis_type = 'cross_spectral_density';     
+    CoherenceResults.highpass_cutoff = highpass_cutoff;    
+    CoherenceResults.lowpass_cutoff = lowpass_cutoff;      
+    CoherenceResults.eeg_Fs = eeg_struct.Fs;                               
+    CoherenceResults.speech_Fs = speech_rawdata.Fs;                       
+    % CoherenceResults. = eeg_struct.eeg_file_name; 
+    CoherenceResults.label = eeg_struct.Subj_id;
+    CoherenceResults.Chanlocs = eeg_struct.Chanlocs;  
 
     % Initialize results matrix: NumTrials x NumChannels
     cross_spectral_density_vals = cell(eeg_struct.Num_trials, eeg_struct.Num_channels);
@@ -170,49 +170,95 @@ function [ResultsCoherenceAnalysis] = Apply2Dataset_CrossSpectralDensity(eeg_str
             [csd_vals(eeg_trial_idx, ch_idx, :), psd_speech(eeg_trial_idx, ch_idx, :), psd_eeg(eeg_trial_idx, ch_idx, :), mspc(eeg_trial_idx, ch_idx, :)] = CrossSpectralDensity(Speech_Struct.envelope, eeg_epoch_bpf, nfft);     
         end
     end
-    % Save trial-level CSD values in the main results structure.
-    ResultsCoherenceAnalysis.CSD = csd_vals;
-    ResultsCoherenceAnalysis.PSD_speech = psd_speech;
-    ResultsCoherenceAnalysis.PSD_eeg = psd_eeg;
-    ResultsCoherenceAnalysis.MSPC = mspc;
 
-    % AVERAGE ACROSS TRIALS at each channel (and each analysis frequency) 
+    % Save trial-level CSD values in the main results structure.
+    CoherenceResults.CSD = csd_vals;
+    CoherenceResults.PSD_speech = psd_speech;
+    CoherenceResults.PSD_eeg = psd_eeg;
+    CoherenceResults.MSPC = mspc;
+
+    % AVERAGE ACROSS TRIALS at each channel (and each frequency bin) 
     % and save in the main results structure as a channels X frequencies matrix.
     % 
+    % the chanmeans matrices will be num_channels x num_freqs, 
+    % where each element is the mean CSD value for that channel and frequency, averaged across all trials.
+    % Each single trial CSD value is a complex value, with a magnitude and phase.
+
     % Note that when we average across trials, consistency of signal-signal phasedifferences across trials
     % will lead to larger average CSD values.
     % If phase is variable, then the vectors will point in different directions across trials, 
     % and the average will be smaller.
 
-    % the chanmeans matrices will be num_channels x num_freqs, where each element is the mean CSD value for that channel and frequency, averaged across all trials.
+    % When we average multiple trials together, we'll get an average vector
+    % whose magnitude is determined by the magnitudes of the single trial vectors
+    % and the similarity of their phases (how much do they point in the same direction).
+    %  
     % the mean of two complex numbers is the mean of their real parts plus i times the mean of their imaginary parts, 
     % so we can just take the mean across trials for each channel and frequency, and the result will be a complex number that represents the average CSD value for that channel and frequency across all trials.
     % this is a vector average, so if the CSD values for a given channel and frequency are consistent across trials (i.e., they have similar phase), 
     % then the average will have a larger magnitude, whereas if the CSD values are variable across trials (i.e., they have different phases), then the average will have a smaller magnitude.
-    ResultsCoherenceAnalysis.CSD_chanmeans = squeeze(mean(csd_vals, 1));
-    ResultsCoherenceAnalysis.MSPC_chanmeans = squeeze(mean(mspc, 1));
+    CoherenceResults.CSD_chanmeans = squeeze(mean(csd_vals, 1));
+    CoherenceResults.MSPC_chanmeans = squeeze(mean(mspc, 1));
 
-    % calculate power spectral density, for the speech and EEG data, averaged across trials, for each channel and frequency.  
+    % Average the power spectral density, for the speech and EEG data, across trials, for each channel and frequency.  
     % This will allow us to calculate coherence values from the CSD values, 
     % by normalizing the CSD values by the power spectral density of the speech and EEG signals at each frequency.
-    ResultsCoherenceAnalysis.PSD_speech_chanmeans = squeeze(mean(psd_speech, 1));  
-    ResultsCoherenceAnalysis.PSD_eeg_chanmeans = squeeze(mean(psd_eeg, 1));
-    % calculate magnitude squared coherence values from the CSD and PSD values, averaged across trials, for each channel and frequency, 
+    CoherenceResults.PSD_speech_chanmeans = squeeze(mean(psd_speech, 1));  
+    CoherenceResults.PSD_eeg_chanmeans = squeeze(mean(psd_eeg, 1));
+    % We'll calculate the Magnitude Squared Coherence (MSC) values from the CSD and PSD values, averaged across trials, 
+    % for each channel and frequency.
+    % Calculate coherence from the CSD and PSD values, averaged across trials, for each channel and frequency, 
     % and save in the main results structure as a channels X frequencies matrix.
     % at each channel and frequency: MSC = |CSD|^2 / (PSD_speech * PSD_eeg)
-    % The CSD values and PSD values are averaged across trials, so the MSC values will reflect the consistency of phase-differences across trials, 
+
+    % The MSC values will reflect the strength and consistency of the relationship between the speech and EEG signals 
+    % at each frequency,
+    % The MSC values are the CSD values normalized by the power spectral density of the speech and EEG signals at each frequency.
+    % The MSC values are influenced by the magnitudes of the CSD values (the numerator of the MSC calculation), 
+    %   and also influenced by the product of the PSD values (the denominator of the MSC calculation),
+    % The MSC values will be higher when the CSD values are larger, 
+    %   but they will also be higher when the product of the PSD values is smaller, 
+    %   which can occur when the power of the signals at that frequency is low.
+    % The MSC values will be unitless and will range from 0 to 1, 
+    % with 0 indicating no relationship between the signals at that frequency, 
+    % and 1 indicating a perfect relationship between the signals at that frequency.
+    % 
+    % Remember: 
+    % The CSD values themselves (MSC numerator) can be influenced by the overall power of the signals at each frequency, 
+    % as well as the consistency of the phase relationship between the signals across trials, 
+    % which means that they can be higher when the power of the signals at that frequency is high, 
+    % and/or when the phase relationship between the signals at that frequency is consistent across trials.
+    % 
+    % The CSD values and PSD values are averaged across trials, 
+    % so the MSC values will reflect the consistency of phase-differences across trials, 
     % as well as the strength of the relationship between the speech and EEG signals at each frequency.
     % we do not normalize the CSD values by the PSD values before averaging across trials, 
     % because we want the trial-level CSD values to reflect the consistency of the power and phase relationships across trials, 
     % and then we can calculate the MSC values from the averaged CSD and PSD values, 
     % which will reflect the overall strength and consistency of the relationship between the speech and EEG signals at each frequency.
-    ResultsCoherenceAnalysis.MSC_chanmeans  = abs(ResultsCoherenceAnalysis.CSD_chanmeans).^2 ./ (ResultsCoherenceAnalysis.PSD_speech_chanmeans .* ResultsCoherenceAnalysis.PSD_eeg_chanmeans);
-    %% ResultsCoherenceAnalysis.MSC_chanmeans = abs(ResultsCoherenceAnalysis.CSD_chanmeans);
+    % The squared magnitude of the CSD values is used in the numerator because 
+    % coherence is defined as the squared magnitude of the cross-spectral density 
+    % normalized by the product of the power spectral densities of the two signals.
+    % the product of the power spectral densities is used in the denominator 
+    % because it normalizes the CSD values by the overall power of the signals at each frequency,
+    % so that the coherence values reflect the strength of the relationship between the signals at each frequency,
+    % note that we squared magnitudes in the numerator, resulting in power values, 
+    % but we did not square the PSD values in the denominator, so the units of the MSC values will be different from the units of the CSD values.
+    %----
+    % Note about the unitless values:
+    % The CSD magnitudes are in units of power (since we squared the magnitudes), 
+    % and the PSD values are also in units of power, 
+    % so when we square the CSD magnitudes and divide by the product of the PSD values,
+    % the resulting MSC values will be unitless, and will range from 0 to 1,
+    CoherenceResults.MSC_chanmeans  = abs(CoherenceResults.CSD_chanmeans).^2 ./ (CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);    
+    % we could calculate "coherence" values by taking the magnitude of the CSD values and normalizing by the PSD values, without squaring the magnitudes,
+    % but this would not be the standard definition of coherence, and the resulting values would not be unitless or bounded between 0 and 1, so it would be harder to interpret them as reflecting the strength of the relationship between the signals at each frequency.
+    %%    CoherenceResults.MSC_chanmeans  = abs(CoherenceResults.CSD_chanmeans) ./ sqrt(CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);
         
     % calculate the frequency vector corresponding to the CSD values, and save in the main results structure.
     % this will be the same for all trials and channels, since we are using the same nfft and sampling rate for all of them.    
     all_freqs = (0:nfft-1) * (eeg_struct.Fs / nfft);  % frequency vector corresponding to DFT bins; ranges from 0 to fs - fs/nfft
-    ResultsCoherenceAnalysis.Freqs = all_freqs(1:nfft/2 + 1);  % frequencies corresponding to the one-sided spectrum; ranges from 0 to fs/2 
+    CoherenceResults.Freqs = all_freqs(1:nfft/2 + 1);  % frequencies corresponding to the one-sided spectrum; ranges from 0 to fs/2 
 end
 
 % we're calculating CSD_freqs twice, once inside the cSD function and once here....
