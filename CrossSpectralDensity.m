@@ -3,6 +3,9 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossS
     % Cross-Spectral Density (CSD) Estimation
     % =========================================================
     % Calculate the cross spectral density between two signals. 
+    % This CSD calculation is for just one trial.
+    % If we want to do multi-trial CSD averages, we'll average outputs from multiple calls to this function
+    % 
     % Function takes two arguments: 
     %   - sig_speech:  a vector containing the speech amplitude envelope samples
     %   - sig_eeg: a vector containing the EEG signal samples.
@@ -50,60 +53,55 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossS
     if isrow(sig_eeg)
         sig_eeg = sig_eeg';
     end
-
     signal_len = length(sig_speech);   % calculate length of the signal (should be the same for both signals)
     
-    % We'll set nfft (the number of FFT points) equal to signal length for simplicity.
-    % If nfft > signal_len, the FFT will be zero-padded, 
-    % which can make the spectrum look smoother but doesn't actually increase the true frequency resolution.
-    % If nfft < signal_len, Matlab's fft() function would shorten the input signal to nfft samples, 
-    % effectively cutting off the end of the segment, which would be bad.    
-    win = hann(signal_len);  % create a Hann window for our signal.
-    
+
+    % ------------------------------------------------------------------------    
+    % Create a Hann window of the same length as the signal, to taper the signal before computing the FFT.
     % Apply the Hann window to each signal by element-wise multiplication.
-    % This tapers the signal to zero at its edges.
-    % This suppresses spectral leakage — the smearing of
-    % energy from strong frequency components into
-    % neighboring bins.
+    % The windowing suppresses spectral leakage — the smearing of
+    % energy from strong frequency components into neighboring bins.
+    % ------------------------------------------------------------------------    
+    win = hann(signal_len);  % Create a Hann window for our signal.
     sig_speech_win = win .* sig_speech;
     sig_eeg_win = win .* sig_eeg;
-    
+    % ------------------------------------------------------------------------    
     % Compute Discrete Fourier Transform (DFT) of each windowed segment using fft().
-    % DFT outputs are complex: magnitude = amplitude, angle = phase.
-    % More specifically, fft outputs a vector of complex numbers, 
-    % where each element corresponds to a specific frequency bin.
-    % Each of these elements is a vector in the complex plane, 
+    % DFT produces one coefficient per frequency bin, 
+    % where the bins correspond to frequencies from 0 to Nyquist frequency (inclusive) for the one-sided spectrum.
+    % Each DFT coefficient is complex: magnitude = amplitude; angle = phase.
+    % That is, each of coeffient is a vector in the complex plane, 
     % with a magnitude (distance from origin) and an angle (phase).
-    sig_speech_dft = fft(sig_speech_win, nfft);
+    % 
+    % We'll set nfft (the number of FFT points) equal to signal length for simplicity.
+    % If nfft > signal_len, the FFT will be zero-padded by Matlab's fft() function, 
+    % which can make the spectrum look smoother but doesn't increase the true frequency resolution.
+    % If nfft < signal_len, fft() would shorten the input signal to nfft samples, 
+    % effectively cutting off the end of the segment, which would be bad.    
+    % ------------------------------------------------------------------------
+    sig_speech_dft = fft(sig_speech_win, nfft);  
     sig_eeg_dft = fft(sig_eeg_win, nfft);
-    % abs(sig_speech_dft(200:220))  
-    % abs(sig_eeg_dft(200:220))  
-
-    % Compute the CSD for this segment: 
+    % ------------------------------------------------------------------------
+    % Compute the CSD for the two signals. 
     % CSD of x and y is computed as S_xy(f) = X(f) * conj(Y(f)), 
-    % where f indexes the frequency bins, X(f) is the DFT of x at frequency f, and Y(f) is the DFT of y at frequency f.
-    % (A1 * e^(i theta1)) * (A2 * e^i theta2)
-    % = A1*A2 * e^(i(theta1 + theta2))     
-    CSD = sig_speech_dft .* conj(sig_eeg_dft);  
-    %%abs(CSD(200:220))  
+    % where f indexes the frequency bins, X(f) and Y(f) are the DFT of x and y, respectively at frequency f
+    % At each frequency bin, CSD multiplies two complex values: 
+    %       (A1 * e^(i theta1)) * (A2 * e^(i theta2))
+    % which will multiply the magnitudes and add the phases.
+    %       = A1*A2 * e^(i(theta1 + theta2))     
+    % ------------------------------------------------------------------------
+    CSD = sig_speech_dft .* conj(sig_eeg_dft);
     % Normalize the CSD by the number of samples and the window power to get a proper estimate of the cross-spectral density.
-    % The window power is the sum of the squared window values, which accounts for the energy reduction due to windowing.
+    % The window power is the sum of the squared window values, 
+    % which accounts for the energy reduction due to the tapering of the signal by the window.
+    % 
+    % Note that we normalize the values here, even though we will later normalize the CSD valuies by dividing by the geometric mean of the PSDs 
+    % when we calculate the magnitude squared coherence (MSC).
     window_power = sum(win.^2); % Total power across the Hann window; use for normalization.
-    CSD = CSD / (signal_len * window_power);    % normalize
+    CSD = CSD / (signal_len * window_power);    % Normalize
 
-    % note that we normalize the values here, even though we will normalize the CSD valuies by dividing by the geometric mean of the PSDs 
-    % when we calculate the magnitude squared coherence (MSC) later,
-    % because we want the CSD values to be on the same scale as the PSD values, so that when we calculate the MSC, we get a meaningful value between 0 and 1.
-    % we'll normalize in case we want to examine the normalized CSD values prior to calculating the MSC, 
-    % or if we want to calculate the MSC using the CSD and PSD values from this function, 
-    % rather than calculating the MSC from the averaged CSD and PSD values across trials and channels.
-    % that should not affect the accuracy of the MSC values, 
-    % because the normalization factor will cancel out when we divide by the geometric mean of the PSDs, 
-    % as long as we apply the same normalization to both the CSD and the PSDs.
-
-
-
-    % --- Extract one-sided spectrum ---
+    % ------------------------------------------------------------------------
+    % Extract one-sided spectrum ---
     % For real-valued signals, we only need the first half of the spectrum produced by the DFT.
     % we call that the one-sided spectrum.
     % The full The DFT output is "two-sided" and symmetric for real signals.
@@ -140,31 +138,117 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossS
     % shouldn't we multiply the whole thing by the sampling rate to get frequencies in Hz?  No, because the sampling rate is not an argument to this function,
     %  and we want the function to be flexible and work with any sampling rate.  So we return the frequencies in cycles per sample, and then the caller can convert to Hz by multiplying by the sampling rate if they want.
     %  This will give us frequencies from 0 to Nyquist frequency (inclusive).
+    % ------------------------------------------------------------------------
 
     n_one_sided = nfft/2 + 1;
-    PSD_speech = sig_speech_dft .* conj(sig_speech_dft) / (signal_len * window_power);  % power spectral density of the speech signal, normalized by signal length and window power
-    %%% abs(PSD_speech(5:20))
-    PSD_eeg = sig_eeg_dft .* conj(sig_eeg_dft) / (signal_len * window_power);  % power spectral density of the EEG signal, normalized by signal length and window power    
-    PSD_speech_one_sided = PSD_speech(1:n_one_sided);
-    PSD_speech_one_sided(2:end-1) = 2 * PSD_speech_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1),
-    %  because the upper half of the spectrum is just the complex conjugate of the lower half, and we want to conserve total power in the one-sided spectrum.
-    PSD_eeg_one_sided = PSD_eeg(1:n_one_sided);
-    PSD_eeg_one_sided(2:end-1) = 2 * PSD_eeg_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)
+    % ------------------------------------------------------------------------------
+    % We'll calculate Power Spectral Density (PSD) 
+    % The conventional way to calculate PSD would be to take 
+    % the magnitude-squared of the DFT coefficients (the power), normalized in some appropriate way.
+    % We'll calculate PSD by calculating the CSD of each signal with itself.
+    % The CSD method is probably a little faster.
+    % ** Note ** when we multiply the DFT by its complex conjugate to calculate the PSD,
+    % the result is a real-valued vector of power estimates at each frequency bin,
+    % because the product of a complex number and its conjugate is always a real number 
+    % with the imaginary phase values canceled out by the conjugate operation: 
+    % i*theta - i*theta = 0.
+    %
+    % We'll normalize the PSD signals by the length of the signal and the power of the window, 
+    % just as we did for CSD.
+    % 
+    % The PSD values are POWER estimates at each frequency bin, 
+    % which is what we need for calculating the magnitude squared coherence (MSC) later on.
+    % when we use the geometric mean of the two PSDs in the denominator of the MSC calculation,
+    % and we'll square the magnitude of the CSD in the numerator.
+    % the CSD is also a power estimate, but it captures shared power between the two signals,
+    % 
+    % 
+    % let's make sure this works the way we think it does.  
+    % ------------------------------------------------------------------------------
+    PSD_speech = (sig_speech_dft .* conj(sig_speech_dft)) / (signal_len * window_power);  % PSD of the speech signal, normalized
+    PSD_eeg = (sig_eeg_dft .* conj(sig_eeg_dft)) / (signal_len * window_power);  % PSD of the EEG signal, normalized.   
+    % ---------------------------------------------------------------------------------
+    % For CSD and PSD, we'll grab just the one-sided spectra, up to the Nyquist 
+    % We'll double all values, except for DC (bin 1) and Nyquist (bin end),
+    % because the upper half of the spectrum is just the complex conjugate of the lower half, 
+    % and we want to conserve total power in the one-sided spectrum.
+    
 
+
+    % ---------------------------------------------------------------------------------    
+    PSD_speech_one_sided = PSD_speech(1:n_one_sided);       % grab the one-sided PSD
+    PSD_speech_one_sided(2:end-1) = 2 * PSD_speech_one_sided(2:end-1); % double values. 
+    PSD_eeg_one_sided = PSD_eeg(1:n_one_sided);         % grab the one-side PSD
+    PSD_eeg_one_sided(2:end-1) = 2 * PSD_eeg_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)
     CSD_one_sided = CSD(1:n_one_sided);
     CSD_one_sided(2:end-1) = 2 * CSD_one_sided(2:end-1); % double all values except for DC (bin 1) and Nyquist (bin end-1)    
     
-    % calculate the single trial magnitude squared PHASE coherence (MSPC) at each frequency, 
-    % which is a measure of the consistency of the phase relationship between the two signals across trials.
-    % MSPC(f) = |S_xy(f)|^2 / (S_xx(f) * S_yy(f)), where S_xy is the CSD, and S_xx and S_yy are the PSDs of the two signals.
-    % Note that the MSC is a value between 0 and 1, where 0 indicates no coherence (no consistent phase relationship) and 1 indicates perfect coherence (perfectly consistent phase relationship) at that frequency.
+    % if i wanted to calculate power spectral density, shouldn't I take the magnitudes of values in PSD_speech and PSD_eeg?
+    % Yes, the power spectral density (PSD) is typically calculated as the magnitude squared of the Fourier coefficients, 
+    % which is what we have done here by multiplying the DFT by its complex conjugate.
+    % But my vector PSD_speech_one_sided has not taken magnitudes by applying abs().  
+    % It's only the product of the DFT and its conjugate, 
+    % which should give us a real-valued vector of power values at each frequency bin,
+    % because the product of a complex number and its conjugate is always a real number 
+    % equal to the magnitude squared of the original complex number.
+    % ahh, that's the part I didn't understand.  I thought that the product of the two complex numbers would be complex,
+    % but it's real, because the phase values have been canceled out by the conjugate operation.  
+    % So we do not need to take the magnitude of the PSD values, 
+    % because they are already real-valued power estimates at each frequency bin.
 
-    % I am going to call it MSPC for "magniude squared phase coherence".  
+
+
+
+
+
+
+
+    % Phase locking value (PLV).  
+    % This is a measure of the consistency of the phase relationship between the two signals across trials.
+    % turn each CSD vector into a unit vector by dividing by its magnitude.  
+    % This removes information about magnitude, leaving only phase.
+    % By averaging these unit vectors across trials, 
+    % we can measure the consistency of the phase relationship between the two signals across trials, 
+    % which is what PLV captures.
+    CSD_unit = CSD_one_sided ./ abs(CSD_one_sided); 
+
+    % ---------------------------------------------------------------------------------
+    % Calculate the magnitude squared PHASE coherence (MSPC) at each frequency. 
+    % MSPC(f) = |S_xy(f)|^2 / (S_xx(f) * S_yy(f)), where S_xy is the CSD, and S_xx and S_yy are the PSDs of the two signals.
+    % So we're normalizing the magnitude squared CSD by the
+    % geometric mean of the two individual power spectra.
+    % The MSC is a value between 0 and 1, where 0 indicates no coherence (no consistent phase relationship) and 1 indicates perfect coherence (perfectly consistent phase relationship) at that frequency.
+    % which is a measure of the consistency of the phase relationship between the two signals across trials.
+
+    % ****************
+    % ** question **:
+    % 
+    % What happens to the phases in the normalizing denominator term?
+    % in the numerator, we've removed phase by grabbing the magnitude with abs()
+    % But the PSDs are complex values, aren't they?
+    % Is MSC made up of real or complex values?
+    % I think we should extracting magnitudes from the PSDs, right?
+
+
+
+
+    % I am going to call this "magnitude squared phase coherence", emphasizing the phase, 
+    % because by normalizing the complex vector magnitude at the single trial level, 
+    % we remove information about magnitude, leaving only phase.
+    % So the coherence we measure by averaging these vectors is only about phase.  it's pure phase coherence. 
+    %
+    % We could call this Phase locking value (PLV).  maybe that's better than MSPC. 
+    %
     % In a later calculation, we will average the CSD values across trials and channels, 
     % and then calculate the MSC from those averages, which should give us an estimate of coherence
     % that reflects both consistency of phase and shared power across trials and channels.
-     
+    % ---------------------------------------------------------------------------------
+    
     MSPC = abs(CSD_one_sided).^2 ./ (PSD_speech_one_sided .* PSD_eeg_one_sided);  % magnitude squared coherence at each frequency bin
+
+    % phase locking value.
+    % Turn each CSD vector (single trial) into a unit vector by dividing by its magnitude
+
 
     %% If we want to extract magnitude and phase, we do this:
     % CSD_mag   = abs(CSD_one_sided);       % shared power at each frequency
