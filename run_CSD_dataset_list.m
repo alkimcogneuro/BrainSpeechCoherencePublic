@@ -1,5 +1,4 @@
 
-
 function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpass_cutoff, lowpass_cutoff, options)
     % input arguments:
     %   eeg_data_filenames: cell array of strings; each string is a filepath to an EEG data file.
@@ -50,11 +49,11 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
     % For each EEG data file, we load a data structure called EEG_struct
     % and then we load the corresponding speech data from a .wav file
     % and run Apply2Dataset_CrossSpectralDensity()
-    % collect the results into an array of structures called cross_spectral_density_results_structures.
+    % collect the results into an array of structures called csd_results_structures.
     %------------------------------------------------------------------------------------------------------%    
     for idx = 1:length(eeg_data_filenames)
         fprintf ('Processing eeg data file %d:  %s\n', idx, eeg_data_filenames{idx});
-        % fprintf ('output file %d:  %s\n', idx, cross_spectral_density_outputfiles(idx)) 
+        % fprintf ('output file %d:  %s\n', idx, csd_outputfiles(idx)) 
         eeg_data_file = eeg_data_filenames{idx};    % grab a single eeg data file name
         [eeg_filepath, eeg_filestem, eeg_fileext] = fileparts(eeg_data_file);   % segment the file path into its components
         load(eeg_data_file);                        % Load EEG data structure from one file 
@@ -74,9 +73,11 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         % and should also include the filter parameters used for the analysis, so that we can keep track of which results correspond to which analysis parameters.
         %%%% should also include the epoching parameters, if we add those as optional arguments to Apply2Dataset_CrossSpectralDensity()
         
-        cross_spectral_density_output_file = sprintf("%s/%s_cross_spectral_density_results_%d_%d_Hz.mat", eeg_filepath, eeg_filestem, highpass_cutoff, lowpass_cutoff);
+        %% csd_output_file = sprintf("%s/%s_csd_results_%d_%d_Hz.mat", eeg_filepath, eeg_filestem, highpass_cutoff, lowpass_cutoff);
+
+        csd_output_file = sprintf("%s/%s_csd_results_%s_%s_Hz_%sms_offset.mat", eeg_filepath, eeg_filestem, string(highpass_cutoff), string(lowpass_cutoff), string(1000 * options.StartTimeOffset));
         % Each call to Apply2Datset_CrossSpectralDensity returns a structure with the results for one EEG data set and one speech data set.
-        % we collect those structures in an array called cross_spectral_density_results_structures.
+        % we collect those structures in an array called csd_results_structures.
         
         % The call to Apply2Dataset_CrossSpectralDensity() will be 
         % contingent on the optional arguments for epoching.  If the user specifies those arguments, we pass them to the function, and if they don't, we call the function without those arguments, and it will use the default values (which are to use the full length of the EEG epochs as the analysis epoch duration, and to use the original EEG onset as the start of the analysis epoch).
@@ -86,6 +87,6 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
             Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, StartTimeOffset=options.StartTimeOffset, EpochDuration=options.EpochDuration); 
         end
         % Write each individual subject's result structure, contents of the variable Results_CSD_Analysis, to a file.
-        save(cross_spectral_density_output_file, 'Results_CSD_Analysis');
+        save(csd_output_file, 'Results_CSD_Analysis');
     end
 end
