@@ -7,12 +7,15 @@ speech_files_path = '~/Downloads/';  % tells us where to find the speech .wav fi
 
 %% Our analyses wil focus on frequencies between 2 and 35 Hz, which are the frequencies that are most relevant for speech processing and entrainment.
 %% we'll band pass filter the speech envelope between 2 and 35 Hz before computing the cross spectral density, to focus on the frequencies that are most relevant for speech processing and entrainment.
-highpass_cutoff = 2;  % in Hz. 
+highpass_cutoff = 2.6;  % in Hz. 
 lowpass_cutoff = 35;  % in Hz
+start_time_offset = 0.35;
+epoch_dur = 2;
+% This is the main function that runs the cross spectral density analysis for all data files in the specified folder, using the specified filter parameters.
+% run_CSD_dataset_list(eegfiles, speech_files_path, highpass_cutoff, lowpass_cutoff);
 
-% this is the main function that runs the cross spectral density analysis for all data files in the specified folder, using the specified filter parameters.
-manage_analysis_cross_spectral_density(eegfiles, speech_files_path, highpass_cutoff, lowpass_cutoff);
-
+% if we want to run with optional epoch parameters, we can specify those as follows:
+run_CSD_dataset_list(eegfiles, speech_files_path, highpass_cutoff, lowpass_cutoff, StartTimeOffset=start_time_offset, EpochDuration=epoch_dur);  % this will run the CSD analysis using an analysis epoch that starts 0.25 seconds after the original EEG onset and lasts for 2 seconds.
 % you don't need to run this load command, unless  you want to inspect the results of the cross spectral density analysis for one subject and one condition,
 %  which are saved in a .mat file by the manage_analysis_cross_spectral_density() function.
 % This load command loads the results of the cross spectral density analysis for one subject and one condition, which are saved in a .mat file by the manage_analysis_cross_spectral_density() function.
