@@ -55,6 +55,12 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossS
     end
     signal_len = length(sig_speech);   % calculate length of the signal (should be the same for both signals)
     
+    % Check that the two signals have the same length.
+    % One potential reason for different lengths might be the resampling we do on the speech signal to match the EEG sampling rate.  
+    % If there was an error in that resampling step, it could lead to a mismatch in lengths.
+    if length(sig_eeg) ~= signal_len
+        error('Input signals must have the same length. Length of sig_speech: %d, Length of sig_eeg: %d', signal_len, length(sig_eeg));
+    end
 
     % ------------------------------------------------------------------------    
     % Create a Hann window of the same length as the signal, to taper the signal before computing the FFT.
@@ -173,8 +179,6 @@ function [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossS
     % because the upper half of the spectrum is just the complex conjugate of the lower half, 
     % and we want to conserve total power in the one-sided spectrum.
     
-
-
     % ---------------------------------------------------------------------------------    
     PSD_speech_one_sided = PSD_speech(1:n_one_sided);       % grab the one-sided PSD
     PSD_speech_one_sided(2:end-1) = 2 * PSD_speech_one_sided(2:end-1); % double values. 
