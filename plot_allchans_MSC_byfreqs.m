@@ -1,53 +1,49 @@
 function [] = plot_allchans_MSC_byfreqs(msc_results)    
-    % msc_results is a structure containing the results of the cross spectral density analysis for one subject and one condition.
-    % the field "CSD_chanmeans" is a matrix of size [num_channels x num_freqs], where each element is the mean msc value for that channel and frequency, averaged across all trials.
-    % the field "msc" is a 3D matrix of size [num_trials  x num_channels x num_freqs], 
-    % where each element is the msc value for that trial, channel, and frequency
-    %
-
-    % msc_results.CSD is num_trials x num_channels x num_freqs, 
-    % where each element is the CSD value for that trial, channel, and frequency.
-    % Calculate the average magnitude of the CSD values, averaged across all channels and trials, for each frequency.
-    % Take magnitude first, then average across trials and channels
-    % The result is a vector of length num_freqs, 
-    % where each element is the average magnitude of the CSD values at that frequency, 
-    % averaged across all channels and trials.
-    % Note that  we are taking the magnitude first...we're getting rid of phase information.
-    % if CSD is bunch of pages,
-    % this will calculate the average magnitude of the CSD values across all channels and trials, 
-    % for each frequency, resulting in a vector of length num_freqs. 
+    % load('~/DATA/PseudoLanguageFallon/SE0003_P1_targets_expose_csd_results_2.6_35_Hz_200ms_offset.mat')
+    % load('~/DATA/PseudoLanguageFallon/SE0003_P1_targets_train_csd_results_2.6_35_Hz_200ms_offset.mat')
+    % %% plot_allchans_MSC_byfreqs(Results_CSD_Analysis)
+    % msc_results is a structure containing the results of the CSD analysis for one subject and one condition.
+    % The field "MSC_chanmeans" is a [num_channels x num_freqs] matrix, 
+    % where each element is the mean MSC value for one channel x frequency, averaged across trials.
    
-    % we already calculated the channel means for msc at each frequency (when we first calculated msc).
-    % now, calculate the mean msc at each frequency, averaged across all channels.
-    msc_avg_channel_means = mean(msc_results.MSC_chanmeans, 1);  % average across channels (dimension 1)    
+    % Calculate the mean MSC at each frequency, averaged across all channels.
+    % note: We've already calculated the channel means for MSC at each frequency (when we first calculated MSC).
+    msc_avg_channel_means = mean(msc_results.MSC_chanmeans, 1);  % Average across channels (dimension 1)    
+    % For each channel, average MSC values within a narrow band of interest.
+    msc_lowerbd_freq = 4;   % lower bound of frequency range of interest
+    msc_upperbd_freq = 8;  % upper bound of frequency range of interest
 
-    % for each channel, average MSC values between 2 and 5 Hz and average them.
-    msc_lowerbd_freq = 4;  % lower bound of frequency range of interest
-    msc_upperbd_freq = 10;  % upper bound of frequency range of interest
+    freq_idx = (msc_results.Freqs >= msc_lowerbd_freq) & (msc_results.Freqs <= msc_upperbd_freq);  % logical index for frequencies within band of interest
+    %    msc_avg_withinband_by_channel = mean(abs(msc_results.MSC_chanmeans(:, freq_idx)), 2);  % average across frequencies (dimension 2), resulting in a vector of length num_channels.
+    % create a num_channels X num_freqs matrix of the absolute values of the MSC_chanmeans, 
+    % where num_freqs is the number of frequencies in the narrow band of interest (e.g., 4-10 Hz), 
+    % and then average across frequencies within the band of interest (dimension 2), resulting in a vector of length num_channels.
+    msc_avg_withinband_by_channel = mean(msc_results.MSC_chanmeans(:, freq_idx), 2);  % average across frequencies (dimension 2), resulting in a vector of length num_channels.
 
-    freq_idx = (msc_results.Freqs >= msc_lowerbd_freq) & (msc_results.Freqs <= msc_upperbd_freq);  % logical index for frequencies between 2 and 5 Hz
-
-    %    msc_avg_2_5Hz_by_channel = mean(abs(msc_results.MSC_chanmeans(:, freq_idx)), 2);  % average across frequencies (dimension 2), resulting in a vector of length num_channels.
-    msc_avg_2_5Hz_by_channel = mean(msc_results.MSC_chanmeans(:, freq_idx), 2);  % average across frequencies (dimension 2), resulting in a vector of length num_channels.
-
-    % we need to convert to double precision for plotting, 
+    % We need to convert to double precision for plotting, 
     % I think this is because the plotting code assumes that the input values can be very small, 
     % and when we plot them, they will be rounded to zero if we keep them in single precision.
+    msc_avg_withinband_by_channel = double(msc_avg_withinband_by_channel);  % convert to double precision for plotting
+    fprintf('msc_avg %.2f - %.2f Hz \n', msc_lowerbd_freq, msc_upperbd_freq);
+    disp(msc_avg_withinband_by_channel); % print the average MSC values for each channel, averaged across frequencies within the band of interest, to the command window.
 
-    msc_avg_2_5Hz_by_channel = double(msc_avg_2_5Hz_by_channel);  % convert to double precision for plotting
-    fprintf('msc_avg 2-5 Hz \n');
-    class(msc_avg_2_5Hz_by_channel)  
-    disp(msc_avg_2_5Hz_by_channel);
-
-    channel_locations = msc_results.Chanlocs; 
-    msc_avg_2_5Hz_by_channel = msc_avg_2_5Hz_by_channel(:);   % this conversion might not be necessary, but it ensures that the input to plot_topomap is a column vector, which is what the function expects.
-    %% plot_topomap(msc_avg_2_5Hz_by_channel', msc_results.Chanlocs)  % plot the topomap using the coherence values and channel locations from the EEG data file.
-    call_topoplot_eeglab(msc_avg_2_5Hz_by_channel', msc_results.Chanlocs)  % plot the topomap using the coherence values and channel locations from the EEG data file.
+    channel_locations = msc_results.Chanlocs;  % grab the channel locations from the CSD results structure, for use in plotting topomap.
+    msc_avg_withinband_by_channel = msc_avg_withinband_by_channel(:);   % make sure that we have a column vector, because plot_topomap expects this. 
+    % plot_topomap(msc_avg_withinband_by_channel', msc_results.Chanlocs)  % plot the topomap using the coherence values and channel locations from the EEG data file.
+    call_topoplot_eeglab(msc_avg_withinband_by_channel', msc_results.Chanlocs, 'CSD', 'CSD')  % plot the topomap using the coherence values and channel locations from the EEG data file.
+    % grab the figure handle for the topoplot that was just created, 
+    % and set the title of the figure to indicate the subject ID and condition for this data.
+    % save the figure to a file
+    % how can i save the figure that's created to a file?
+    fig_handle = gcf;  % get the current figure handle
+    % set the title of the figure to indicate the subject ID and condition for this data.
+    title(sprintf('MSC %.2f - %.2f Hz, Subject %s, Condition %s, ExposureType %s', msc_lowerbd_freq, msc_upperbd_freq, msc_results.Subj_id, msc_results.Block, msc_results.exposure_type));
+    saveas(fig_handle, sprintf('~/Downloads/MSC_topomap_%s_%s_%s_%.2f-%.2fHz.png', msc_results.Subj_id, msc_results.Block, msc_results.exposure_type, msc_lowerbd_freq, msc_upperbd_freq));  % save the figure to a file with a name that includes the subject ID, condition, and frequency range.
+    
 
     for freq_idx = 1:length(msc_results.Chanlocs)
-        fprintf('channel %s, msc(2-5Hz) = %d\n',  msc_results.Chanlocs(freq_idx).labels,  msc_avg_2_5Hz_by_channel(freq_idx) );
+        fprintf('channel %s, msc(2-5Hz) = %d\n',  msc_results.Chanlocs(freq_idx).labels,  msc_avg_withinband_by_channel(freq_idx) );
     end
-
 
     figure; 
     for channel = 1:length(msc_results.Chanlocs) 
