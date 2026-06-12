@@ -69,23 +69,17 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         if ~isnan(options.StartTimeOffset) && ~isnan(options.EpochDuration) && (options.StartTimeOffset > options.EpochDuration)
              error('The specified StartTimeOffset of %.2f seconds is greater than the specified EpochDuration of %.2f seconds. Please adjust the StartTimeOffset to be less than or equal to the EpochDuration, because if the offset is greater than the epoch duration, it offsets the speech onset to a time that is after the end of the EEG epoch, which would lead to misalignment between the speech and EEG epochs.', options.StartTimeOffset, options.EpochDuration);
         end
-        
-        
         % If the user provided a StartTimeOffset and EpochDuration, then we will 
         % adjust the EEG data structure to only include the samples in the specified range relative to the original EEG onset.  
         % This will shift the analysis epoch for both the EEG and speech data by the specified offset and duration.  
         % If the user did not provide these optional arguments, 
-        % then we will use the full length of the EEG epochs as the analysis epoch duration, 
-        % and we will not apply any offset to the speech onset latencies.
-        % This logical check is not strictly necessary, because we already checked the validity of the optional parameters above, 
-        % but it is a good idea to have this check here to ensure that we are only applying the epoch adjustments if the parameters are valid and provided by the user.
+        % then we will use the full length of the EEG epochs as the analysis epoch duration. 
         if (~isnan(options.StartTimeOffset) & ~isnan(options.EpochDuration))
             % User has provided a StartTimeOffset and EpochDuration, 
             % so we will adjust the EEG data structure to only include the samples in the specified range relative to the original EEG onset.
             % if both the optional parameters are provided correctly, then print them for display
             fprintf('    - StartTimeOffset: %.2f seconds, which corresponds to %d samples at the EEG sampling rate\n', options.StartTimeOffset, round(options.StartTimeOffset * eeg_struct.Fs));
-            fprintf('    - EpochDuration: %.2f seconds, which corresponds to %d samples at the EEG sampling rate\n', options.EpochDuration, round(options.EpochDuration * eeg_struct.Fs));
-                
+            fprintf('    - EpochDuration: %.2f seconds, which corresponds to %d samples at the EEG sampling rate\n', options.EpochDuration, round(options.EpochDuration * eeg_struct.Fs));    
             % Round and convert the start time offset from seconds to samples, 
             % so that we can apply it to the speech onset latencies in the EEG data structure.
             start_offset_samples = round(options.StartTimeOffset * eeg_struct.Fs); % the number of samples corresponding to the specified StartTimeOffset, at the EEG sampling rate.  
@@ -93,7 +87,7 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
             sample_range_restricted = start_offset_samples:(start_offset_samples + epoch_duration_samples - 1);  % The range of samples to use for the analysis epoch, relative to the original EEG onset.  This will be applied to the speech onset latencies to determine the new speech epoch start and end times.
             fprintf(' -- Applying StartTimeOffset of %.2f seconds and EpochDuration of %.2f seconds to EEG data structure.\n', options.StartTimeOffset, options.EpochDuration);
             % Restrict the EEG data to the specified sample range for the analysis epoch.
-            eeg_struct.Data = eeg_struct.Data(:, sample_range_restricted, :)
+            eeg_struct.Data = eeg_struct.Data(:, sample_range_restricted, :);
             % shift the speech onset latency by the specified offset, so that the new speech epoch will be aligned with the new EEG epoch. 
             % this will work for all trials, because the speech epoch will be defined relative to the new EEG onset for each trial.
             % eeg_struct.OnsetLatency is a vector of length Num_trials, with the original speech onset latency for each trial.
@@ -105,9 +99,10 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     else
         fprintf(' -- No optional parameters for epoching provided; using full length of EEG epochs for analysis.\n');
     end
-    
-    Num_channels = size(eeg_struct.Data, 1);  % Check the size of the data matrix; should be [num_channels x num_samples x num_trials]
-    Num_samples = size(eeg_struct.Data, 2);
+
+    % The data matrix should be [num_channels x num_samples x num_trials]
+    Num_channels = size(eeg_struct.Data, 1);  
+    Num_samples = size(eeg_struct.Data, 2);  % the number of samples in the EEG epochs after any optional adjustments to the epoch duration.  This will be used to determine the duration of the speech epochs and to set the nfft parameter for the CSD calculation.
     Num_trials = size(eeg_struct.Data, 3);
 
     % Z-score normalization of EEG data across all samples and trials, separately for each channel.
@@ -116,9 +111,7 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     eegdata_2d = reshape(eeg_struct.Data, Num_channels, []);
     mu    = mean(eegdata_2d, 2);        % 64x1 mean per channel
     sigma = std(eegdata_2d, 0, 2);      % 64x1 std per channel
-    
-    % Subtract mean and divide by std, then reshape back to original dimensions
-    eeg_data_norm = (eegdata_2d - mu) ./ sigma;
+    eeg_data_norm = (eegdata_2d - mu) ./ sigma;    % Subtract mean and divide by std  
     eeg_struct.Data = reshape(eeg_data_norm, Num_channels, Num_samples, Num_trials);  % reshape back to original dimensions
     % Z-score normalization of speech data.
     % We normalize the speech across the entire speech signal
@@ -126,64 +119,52 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     speech_amplitudes = speech_rawdata.Amplitudes;
     speech_amplitudes_norm = (speech_amplitudes - mean(speech_amplitudes)) / std(speech_amplitudes);
     speech_rawdata.Amplitudes = speech_amplitudes_norm;  % update the speech raw data structure with the normalized amplitudes.
-
     
-    num_samples_epoch = size(eeg_struct.Data, 2);  % the number of samples in the EEG epochs after any optional adjustments to the epoch duration.  This will be used to determine the duration of the speech epochs and to set the nfft parameter for the CSD calculation.
     % nfft is the number of points to use in the FFT calculation for the CSD estimation.
     % we want to set nfft equal to the number of samples in the EEG epochs, so that we are computing the FFT on the full length of the analysis epochs.
     % note that if nfft is a power of 2 for computational efficiency; 
     % this will slightly reduce the frequency resolution but is generally a good idea for FFT calculations.
     % for example, if the EEG epochs are 1500 samples long, then nfft will be set to 1024, which is the largest power of 2 less than or equal to 1500. 
     % This means that the FFT will be computed on the first 1024 samples of the EEG and speech epochs, and the remaining samples will be ignored for the CSD calculation. 
-    % nfft = 2^floor(log2(num_samples_epoch));
-    nfft = num_samples_epoch;
-    % find the largest even number of samples that is less than or equal to num_samples_epoch, to ensure that nfft is even, 
+    % nfft = 2^floor(log2(Num_samples));
+    nfft = Num_samples;
+    % find the largest even number of samples that is less than or equal to Num_samples, to ensure that nfft is even, 
     % which is important for interpreting the frequency bins of the FFT output.
     %if mod(nfft, 2) ~= 0
     %    nfft = nfft - 1;  % make nfft even if it is odd
     %end
     
-    fprintf(' --Number of samples in EEG epochs after any optional adjustments: %d samples (%.2f seconds)\n', num_samples_epoch, num_samples_epoch / eeg_struct.Fs);
+    fprintf(' --Number of samples in EEG epochs: %d samples (%.2f seconds)\n', Num_samples, (Num_samples / eeg_struct.Fs));
     fprintf(' --Number of FFT points (nfft) for CSD calculation: %d\n', nfft);  
+    
     CoherenceResults = struct();  % Initialize
     CoherenceResults.analysis_type = 'cross_spectral_density';     
     CoherenceResults.highpass_cutoff = highpass_cutoff;    
     CoherenceResults.lowpass_cutoff = lowpass_cutoff;      
     CoherenceResults.eeg_Fs = eeg_struct.Fs;                               
     CoherenceResults.speech_Fs = speech_rawdata.Fs;                       
-    % CoherenceResults. = eeg_struct.eeg_file_name; 
     CoherenceResults.label = eeg_struct.Subj_id;
     CoherenceResults.Chanlocs = eeg_struct.Chanlocs;  
-
+    % Save additional information about the EEG data and analysis parameters in the main results structure, for reference.
+    CoherenceResults.Block = eeg_struct.Block;
+    CoherenceResults.exposure_type = eeg_struct.exposure_type;
+    CoherenceResults.Subj_id = eeg_struct.Subj_id;
+    CoherenceResults.audio_file = eeg_struct.audio_file;
+    CoherenceResults.nfft = nfft;
+    CoherenceResults.Num_channels = Num_channels;
     % Initialize results matrix: NumTrials x NumChannels
     cross_spectral_density_vals = cell(eeg_struct.Num_trials, eeg_struct.Num_channels);
-    
-    % Duration of speech epoch in seconds, 
-    % calculated from the number of samples in the EEG epochs.
-    % if the optional arguments for StartTimeOffset and EpochDuration are provided, 
-    % then the EEG epoch duration will have been adjusted in accordance with those parameters 
-    % and the speech epoch duration will match that new EEG epoch duration.
-    % That is, the dimensionality of eeg_struct.Data has already been adjusted to reflect any optional parameters for epoch duration, 
-    % so we can just calculate the speech epoch duration from the size of the data matrix.
     speech_epoch_duration = size(eeg_struct.Data, 2) / eeg_struct.Fs;  % speech epoch duration in seconds, calculated from the number of samples in the EEG epochs and the EEG sampling rate.
     for eeg_trial_idx = 1:eeg_struct.Num_trials
-        % Original EEG onset
-        % If the user provided a StartTimeOffset, then the EEG onset will have been shifted by that offset, 
-        % and the speech epoch will be aligned with the new EEG onset.
+        % Speech onset latency is stored in the eeg data structure. 
         speech_onset_latency = eeg_struct.OnsetLatency(eeg_trial_idx);  
         speech_offset_latency = speech_onset_latency + speech_epoch_duration;
-
-        % Convert seconds to sample indices
-        speech_onset_idx = uint64(speech_onset_latency * speech_rawdata.Fs);
-        speech_offset_idx = uint64(speech_offset_latency * speech_rawdata.Fs);
-
+        speech_onset_idx = uint64(speech_onset_latency * speech_rawdata.Fs);    % Convert seconds to samples 
+        speech_offset_idx = uint64(speech_offset_latency * speech_rawdata.Fs);  % Convert seconds to samples
         % Ensure indices are within bounds
         speech_onset_idx = max(1, min(speech_onset_idx, length(speech_rawdata.Amplitudes)));
         speech_offset_idx = max(1, min(speech_offset_idx, length(speech_rawdata.Amplitudes)));
-
-        % Extract speech epoch, using indices calculated from the (potentially adjusted) speech onset latency and the speech epoch duration, 
-        % which is determined by the number of samples in the EEG epochs.
-        speech_epoch = speech_rawdata.Amplitudes(speech_onset_idx:speech_offset_idx);
+        speech_epoch = speech_rawdata.Amplitudes(speech_onset_idx:speech_offset_idx);  % extract the speech epoch.
         % Prepare the speech for coherence analysis
         % Extract amplitude envelope, bandpass filter, downsample, save phase and magnitude information. 
         % I was previously assuming that eeg_struct would have a field called Num_samples, but it doesn't,
@@ -218,23 +199,38 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     % Average CSD values across trials at each channel (and each frequency bin) 
     % and save in the main results structure as a [num_channels X num_frequencies] matrix.
     % 
-    % Each single-trial CSD value is a complex value, with a magnitude and phase.   
+    % Each single-trial CSD value is a complex value, with a magnitude and phase component.  
     % When we average multiple trials together, we'll get an average vector
-    % whose magnitude is determined by 1) the magnitudes of the single trial vectors
-    % and 2) the similarity (consistency) of their phase values (how much do they point in the same direction).
+    % whose magnitude is determined by both 
+    % -- the magnitudes of the single trial vectors and
+    % -- the similarity (consistency) of their phase values (how much do they point in the same direction).
     % (by phase values, we mean phase differences between the speech and EEG signals at that frequency.) 
     CoherenceResults.CSD_chanmeans = squeeze(mean(csd_vals, 1));
     CoherenceResults.MSPC_chanmeans = squeeze(mean(mspc, 1));
     % Average the power spectral density, for the speech and EEG data, across trials, for each channel and frequency.  
-    % This will allow us to calculate coherence values from the CSD values, 
-    % by normalizing the CSD values by the power spectral density of the speech and EEG signals at each frequency.
+    % We will normalize the CSD values by the PSD of the speech and EEG signals at each frequency.
     CoherenceResults.PSD_speech_chanmeans = squeeze(mean(psd_speech, 1));  
     CoherenceResults.PSD_eeg_chanmeans = squeeze(mean(psd_eeg, 1));
-    % We'll calculate the Magnitude Squared Coherence (MSC) values from the CSD and PSD values, averaged across trials, 
-    % for each channel and frequency.
-    % Calculate coherence from the CSD and PSD values, averaged across trials, for each channel and frequency, 
-    % and save in the main results structure as a channels X frequencies matrix.
-    % at each channel and frequency: MSC = |CSD|^2 / (PSD_speech * PSD_eeg)
+    % ------------------------------------------------------------------------------------ 
+    % Magnitude Squared Coherence (MSC) provides a measure of coherence 
+    % by taking the squared magnitude of the CSD values and normalizing 
+    % by the product of the PSD values for the speech and EEG signals at each frequency.
+    % MSC = |CSD|^2 / (PSD_speech * PSD_eeg)
+    % We'll calculate MSC from CSD and PSD values averaged across trials. 
+    % ------------------------------------------------------------------------------------ 
+    CoherenceResults.MSC_chanmeans  = abs(CoherenceResults.CSD_chanmeans).^2 ./ (CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);            
+    % Calculate the frequency vector corresponding to the CSD values and save in the main results structure.
+    % This will be the same for all trials and channels.   
+    all_freqs = (0:nfft-1) * (eeg_struct.Fs / nfft);   % frequency vector corresponding to all DFT bins; ranges from 0 to fs - fs/nfft
+    CoherenceResults.Freqs = all_freqs(1:nfft/2 + 1);  % frequencies corresponding to the one-sided spectrum; ranges from 0 to fs/2 
+    
+    
+    
+end
+
+% we're calculating CSD_freqs twice, once inside the cSD function and once here....
+
+
 
     % The MSC values will reflect the strength and consistency of the relationship between the speech and EEG signals 
     % at each frequency,
@@ -275,18 +271,3 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     % and the PSD values are also in units of power, 
     % so when we square the CSD magnitudes and divide by the product of the PSD values,
     % the resulting MSC values will be unitless, and will range from 0 to 1,
-    CoherenceResults.MSC_chanmeans  = abs(CoherenceResults.CSD_chanmeans).^2 ./ (CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);    
-    % we could calculate "coherence" values by taking the magnitude of the CSD values and normalizing by the PSD values, without squaring the magnitudes,
-    % but this would not be the standard definition of coherence, and the resulting values would not be unitless or bounded between 0 and 1, so it would be harder to interpret them as reflecting the strength of the relationship between the signals at each frequency.
-    %%    CoherenceResults.MSC_chanmeans  = abs(CoherenceResults.CSD_chanmeans) ./ sqrt(CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);
-        
-    % calculate the frequency vector corresponding to the CSD values, and save in the main results structure.
-    % this will be the same for all trials and channels, since we are using the same nfft and sampling rate for all of them.    
-    all_freqs = (0:nfft-1) * (eeg_struct.Fs / nfft);  % frequency vector corresponding to DFT bins; ranges from 0 to fs - fs/nfft
-    CoherenceResults.Freqs = all_freqs(1:nfft/2 + 1);  % frequencies corresponding to the one-sided spectrum; ranges from 0 to fs/2 
-end
-
-% we're calculating CSD_freqs twice, once inside the cSD function and once here....
-% CSD_freqs = (0:(nfft/2)) * (1/signal_len);  % frequency vector for the one-sided spectrum, in cycles per sample. 
-% the calculation in the CSD function is more accurate, because it takes into account the actual sampling rate of the EEG data, whereas this calculation assumes a sampling rate of 1 Hz.
-
