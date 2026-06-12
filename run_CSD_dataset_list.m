@@ -28,21 +28,30 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
     % 
     % EEG data structure will have this format:
     % EEG_struct = 
-    %
     %   struct with fields:
-    %             Data: [63×1500×1688 single]
-    %         Chanlocs: [1×63 struct]
-    %               Fs: 250
-    %       Num_trials: 1688
-    %     Num_channels: 63
-    %      Num_samples: 1500
-    %          Subj_id: 'SE0001'
-    %        Condition: 'P1'
-    %           TrigID: [1688×1 double]
-    %        TrigLabel: [1688×1 string]
-    %             Cond: [1688×1 string]
-    %     OnsetLatency: [1688×1 double]
+    %      OnsetLatency: [39×1 double]
+    %            TrigID: [39×1 double]
+    %        Trial_cond: [39×1 string]
+    %        Num_trials: 39
+    %                Fs: 1000
+    %              Data: [64×3000×39 single]
+    %          Chanlocs: [1×64 struct]
+    %             Block: 'P1'               % should change this to "Condition" in the future, to be more general and less tied to our specific experiment.
+    %        audio_file: 'Velveteen_pseudo.wav'
+    %           Subj_id: 'SE0001'           
+    %      Num_channels: 64
+    %     exposure_type: "e"
+    
 
+    % Create a folder for the results of this analysis, 
+    % which will hold the results files for analysis of all files in the list eeg_data_filenames
+    datetime_str = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
+    results_foldername = sprintf('CSD_Analysis_Results_%s', datetime_str);  % folder name for results files
+    % grab the path to the first EEG data file in the list, and use that to create a path for the output folder, which will be in the same directory as the EEG data files.
+    output_dir = fullfile(fileparts(eeg_data_filenames{1}), results_foldername);  % create a path for the output folder, which is in the same directory as the EEG data files.
+    if ~exist(output_dir, 'dir')  % Check if the output folder already exists; it should ont, because we just made up the new folder name using the current date and time, but we check just in case.
+        mkdir(output_dir);  % if the output folder does not exist, create it
+    end
     %------------------------------------------------------------------------------------------------------%    
     % Iterate through all the EEG data files.
     % And run Apply2Dataset_CrossSpectralDensity() for each one, using the corresponding speech data. 
@@ -69,13 +78,9 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         Speech_RawData.Amplitudes = speech_amplitudes;      % Save the speech amplitudes
         Speech_RawData.Fs = fs_speech;                      % Save the speech sampling rate (44.1 khz for .wav files)
         % Create a filename for saving analaysis results to the same folder as the EEG data.
-        % The name will be unique to the EEG data filename (e.g., include the subject ID and condition) 
-        % and should also include the filter parameters used for the analysis, so that we can keep track of which results correspond to which analysis parameters.
-        %%%% should also include the epoching parameters, if we add those as optional arguments to Apply2Dataset_CrossSpectralDensity()
-        
-        %% csd_output_file = sprintf("%s/%s_csd_results_%d_%d_Hz.mat", eeg_filepath, eeg_filestem, highpass_cutoff, lowpass_cutoff);
-
-        csd_output_file = sprintf("%s/%s_csd_results_%s_%s_Hz_%sms_offset.mat", eeg_filepath, eeg_filestem, string(highpass_cutoff), string(lowpass_cutoff), string(1000 * options.StartTimeOffset));
+        % The name will be unique to the EEG data filename (e.g., include the subject ID and condition) and will indicate that this is the result of the CSD analysis.
+        % additional metadata about the file will be stored in the results data objec and in a sidefar .txt file.         
+        csd_output_file = sprintf("%s/CSD_results_%s.mat", output_dir, eeg_filestem); 
         % Each call to Apply2Datset_CrossSpectralDensity returns a structure with the results for one EEG data set and one speech data set.
         % we collect those structures in an array called csd_results_structures.
         
@@ -88,5 +93,19 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         end
         % Write each individual subject's result structure, contents of the variable Results_CSD_Analysis, to a file.
         save(csd_output_file, 'Results_CSD_Analysis');
+         
+        % We write a sidecar file (.txt) that contains the name of the EEG data file that this results file corresponds to
+        % and other relevant information about the analysis parameters (e.g., filter parameters, epoching parameters, etc.) that we want to keep track of.
+        metadata_output_file_txt = sprintf("%s/CSD_results_Metadata_%s.txt", output_dir, eeg_filestem);  % Create a filename for the metadata text file, which has the same name as the results file but with "_metadata.txt" appended to the end of the filename.
+        fid = fopen(metadata_output_file_txt, 'w');  % Open the metadata text file for writing
+        fprintf(fid, 'Metadata for Cross Spectral Density results file\nResults filename: %s\n', csd_output_file);  % 
+        fprintf(fid, 'EEG data file: %s\n', eeg_data_file);  % Write the name of the EEG data file that this results file corresponds to
+        fprintf(fid, 'High-pass filter cutoff frequency: %d Hz\n', highpass_cutoff);  % Write the high-pass filter cutoff frequency used for this analysis
+        fprintf(fid, 'Low-pass filter cutoff frequency: %d Hz\n', lowpass_cutoff);    % Write the low-pass filter cutoff frequency used for this analysis
+        fprintf(fid, 'Epoch start time offset: %d seconds\n', options.StartTimeOffset);  % Write the epoch start time offset used for this analysis
+        fprintf(fid, 'Epoch duration: %d seconds\n', options.EpochDuration);      % Write the epoch duration used for this analysis
+        fclose(fid);  % Close the metadata text file
+        
+        
     end
 end
