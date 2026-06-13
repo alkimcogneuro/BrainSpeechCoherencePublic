@@ -223,9 +223,6 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     % This will be the same for all trials and channels.   
     all_freqs = (0:nfft-1) * (eeg_struct.Fs / nfft);   % frequency vector corresponding to all DFT bins; ranges from 0 to fs - fs/nfft
     CoherenceResults.Freqs = all_freqs(1:nfft/2 + 1);  % frequencies corresponding to the one-sided spectrum; ranges from 0 to fs/2 
-    
-    
-    
 end
 
 % we're calculating CSD_freqs twice, once inside the cSD function and once here....
