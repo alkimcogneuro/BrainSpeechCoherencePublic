@@ -209,17 +209,15 @@ function [CoherenceResults] = Apply2Dataset_InstaPhaseCoherence(eeg_struct, spee
         end
     end
     % Save trial-level  values in the main results structure.
-    CoherenceResults.phase_coherence = phase_coherence_values;   
+    CoherenceResults.phase_coherence = phase_coherence_vals;   
     % Instantaneous Phase Coherence values for each trial and channel, saved in the main results structure for reference.  
-    % This is a NumTrials x NumChannels matrix, where each value represents the phase coherence for that trial and channel.
+    % This is a [NumTrials x NumChannels] matrix, where each value represents the phase coherence for that trial and channel.
     
     % Average across trials per channel.  
     % The values are already real-valued magnitudes, 
     % so we can simply take the mean across trials for each channel to get the average phase coherence value for each channel.
     CoherenceResults.phase_coherence_chanmeans = mean(phase_coherence_vals, 1);
     % Maximum coherence and corresponding channel
-    [CoherenceResults.max_val, CoherenceResults.max_chan]  = max(ResultsEntrainmentAnalysis.phase_coherence_chanmeans);
-    % Save results to file
-    save(results_filename, 'CoherenceResults');    
+    [CoherenceResults.max_val, CoherenceResults.max_chan]  = max(CoherenceResults.phase_coherence_chanmeans);
 end
 
