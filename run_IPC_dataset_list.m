@@ -12,6 +12,10 @@ function [] = run_IPC_dataset_list(eeg_data_filenames, speech_files_path, highpa
         options.StartTimeOffset (1,1) double {mustBeReal} = NaN % optional offset to the start time of the analysis epoch, in seconds, relative to the original EEG onset.  
                                                                 % If NaN, use the original EEG onset as the start of the analysis epoch.
         options.EpochDuration (1,1) double {mustBeReal} = NaN   % optional epoch duration, in seconds-- if NaN, use the full length of the EEG epochs as the analysis epoch duration.
+        options.RandomizeOnsets (1,1) logical = false  % optional flag for whether to randomize the onset times of the speech epochs relative to the EEG data.  
+        % If true, the speech onset times will be randomly changed.  
+        % This can be used as a control analysis to test whether any observed entrainment effects are specific to the original alignment of the speech and EEG data, 
+        % or if they could be explained by non-specific temporal correlations.
     end
     %--------------------------------------------------------------------------------------%
     % EEG data structure will have a format APPROXIMATELY LIKE THIS:
@@ -104,6 +108,13 @@ function [] = run_IPC_dataset_list(eeg_data_filenames, speech_files_path, highpa
         fprintf(fid, 'Low-pass filter cutoff frequency: %d Hz\n', lowpass_cutoff);    % Write the low-pass filter cutoff frequency used for this analysis
         fprintf(fid, 'Epoch start time offset: %d seconds\n', options.StartTimeOffset);  % Write the epoch start time offset used for this analysis
         fprintf(fid, 'Epoch duration: %d seconds\n', options.EpochDuration);      % Write the epoch duration used for this analysis
+
+
+        fprintf(fid, 'Randomized onsets status: %d\n', options.RandomizeOnsets);  % Write the status of the randomize onsets flag used for this analysis
+        fprintf(fid, 'Analysis date and time: %s\n', datetime_str);  % Write the date and time when the analysis was run
+        fprintf(fid, 'Analysis script: run_IPC_dataset_list.m\n');  % Write the name of the analysis script used for this analysis
+        fprintf(fid, 'Analysis function: Apply2Dataset_InstantaneousPhaseCoherence.m\n');  % Write the name of the analysis function used for this analysis 
+       
         fclose(fid);  % Close the metadata text file
     end
 end

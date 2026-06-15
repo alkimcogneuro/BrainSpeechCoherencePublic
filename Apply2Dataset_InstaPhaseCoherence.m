@@ -15,6 +15,7 @@ function [CoherenceResults] = Apply2Dataset_InstaPhaseCoherence(eeg_struct, spee
     % 
     % NOTE:  the highpass_cutoff and lowpas_cutoff parameters here mean something different from the same parameters CSD functions
     %  
+    
     % ===============================================================================================================
     arguments
         eeg_struct
@@ -23,16 +24,18 @@ function [CoherenceResults] = Apply2Dataset_InstaPhaseCoherence(eeg_struct, spee
         lowpass_cutoff  (1,1) double {mustBeReal} = 35
         options.StartTimeOffset (1,1) double {mustBeReal} = NaN % optional offset to the start time of the analysis epoch, in seconds, relative to the original EEG onset.  
                                                                 % If NaN, use the original EEG onset as the start of the analysis epoch.
-
         options.EpochDuration (1,1) double {mustBeReal} = NaN   % optional epoch duration, in seconds-- if NaN, use the full length of the EEG epochs as the analysis epoch duration.
+        options.RandomizeOnsets (1,1) logical = false  % optional boolean argument to indicate whether to randomize the speech onset latencies for the analysis, as a control.  
     end
-
     fprintf(' -- Running Instantaneous Phase Coherence analysis for subject %s\n', eeg_struct.Subj_id);
     fprintf(' -- Filter parameters: HighPass = %d Hz, LowPass = %d Hz\n', highpass_cutoff, lowpass_cutoff);
     %% fprintf(' --Optional parameters: StartTimeOffset = %.2f seconds, EpochDuration = %.2f seconds\n', options.StartTimeOffset, options.EpochDuration);
     fprintf(' -- EEG sampling rate: %d Hz, Speech sampling rate: %d Hz\n', eeg_struct.Fs, speech_rawdata.Fs);
     fprintf(' -- Number of EEG trials: %d, Number of EEG channels: %d\n', eeg_struct.Num_trials, eeg_struct.Num_channels);
     fprintf(' -- Length of EEG epochs (raw data): %d samples (%.2f seconds)\n', size(eeg_struct.Data, 2), size(eeg_struct.Data, 2) / eeg_struct.Fs);    
+    fprintf(' -- RandomizeOnsets: %d\n', options.RandomizeOnsets);
+       
+
     
     %--------------------------------------------------------------------------------------------------------------------
     % We will check the validity of the optional parameters for epoching, and if they are not valid, throw an error to alert the user to adjust them:
@@ -108,9 +111,12 @@ function [CoherenceResults] = Apply2Dataset_InstaPhaseCoherence(eeg_struct, spee
     % Reshape to (numchannels x (numsamples*numtrials)) in order to copmute mean and std across all samples and trials for each channel, 
     % then reshape back to original dimensions after normalization.
 
-    % for Phase Coherence, we don't need to normalize the EEG or the speech data, 
+    % ****
+    %    For Phase Coherence, we don't need to normalize the EEG or the speech data, 
     % because we are only interested in the phase information, 
     % and the phase is not affected by the amplitude of the signal.
+    % I think we should get rid of these normalization steps for the Instantaneous Phase Coherence analysis, 
+    % because they are not necessary and could potentially introduce artifacts into the phase information.
 
     eegdata_2d = reshape(eeg_struct.Data, Num_channels, []);
     mu    = mean(eegdata_2d, 2);        % 64x1 mean per channel
@@ -159,10 +165,48 @@ function [CoherenceResults] = Apply2Dataset_InstaPhaseCoherence(eeg_struct, spee
     % Initialize results matrix: NumTrials x NumChannels
     cross_spectral_density_vals = cell(eeg_struct.Num_trials, eeg_struct.Num_channels);
     speech_epoch_duration = size(eeg_struct.Data, 2) / eeg_struct.Fs;  % speech epoch duration in seconds, calculated from the number of samples in the EEG epochs and the EEG sampling rate.
+    
+    % ------------------------------------------------------------------------------------------------------- %   
+    % Control Analysis.
+    % If the RandomizeOnsets option is true, then we will add a random offset to the speech onset latency for each trial, 
+    % to shift the speech epoch to a different segment of the speech signal that does not correspond to the EEG data for that trial, 
+    % as a control analysis.
+    % ------------------------------------------------------------------------------------------------------- %   
+    if options.RandomizeOnsets
+        fprintf(' -- Randomized onset mode ON: adding random 3-10s offset to speech onset latencies for each trial, to shift speech epochs to different segments of the speech signal that do not correspond to the EEG data for those trials.\n'); 
+        for eeg_trial_idx = 1:eeg_struct.Num_trials
+            % For each trial, we will randomly select a different trial index 
+            % that is at least 2 trials away from the current trial index (eeg_trial_idx).
+            rnd_mismatch_eeg_trial_idx = randi(eeg_struct.Num_trials);
+            while abs(rnd_mismatch_eeg_trial_idx - eeg_trial_idx) < 2  
+                % loop until we get a trial index that satisfies our critrion.
+                rnd_mismatch_eeg_trial_idx = randi(eeg_struct.Num_trials);
+            end
+            eeg_struct.rand_mismatch_indices(eeg_trial_idx) = rnd_mismatch_eeg_trial_idx;  % save the randomly selected mismatching trial index in a new field in the EEG data structure, for reference.
+            % Store the onset latency for this randomly selected trial in a new field in the EEG data structure called RandOnsetLatency, 
+            % which will hold the randomized speech onset latencies for each trial.
+            % set the speech onset latency for this trial to the speech onset latency of the randomly selected trial, to shift the speech epoch to a different segment of the speech signal that does not correspond to the EEG data for this trial. 
+            RandOnsetLatency(eeg_trial_idx) = eeg_struct.OnsetLatency(rnd_mismatch_eeg_trial_idx);  
+        end
+
+        % Save the original speech onset latencies, for record-keeping.  
+        OnsetLatency_Original = eeg_struct.OnsetLatency; 
+        % Overwrite the speech onset latencies in the EEG data structure with the randomized ones, 
+        % so that the rest of the analysis will use the randomized onset latencies.         
+        eeg_struct.OnsetLatency = RandOnsetLatency; 
+        % Add a field to the main results structure to indicate that we used randomized onsets for this analysis, 
+        % and save the original speech onset latencies in the results structure as well, so that we have a record of the original and randomized speech onset latencies for each trial in the results of this analysis, which will be important for interpreting the results of the control analysis and comparing them to the main analysis with the original speech onset latencies.
+        CoherenceResults.RandomizedOnsets = true;
+        CoherenceResults.OnsetLatency_Original = OnsetLatency_Original; % save the original speech onset latencies in the results structure for reference.
+        CoherenceResults.OnsetLatency_Randomized = RandOnsetLatency;    % save the randomized speech onset latencies in the results structure for reference.
+    end
+    % ----------------------------------------------------------------------------------------------------------------- %
+    % Loop through trials to extract speech epochs and then compute phase coherence analysis
+    % with EEG data for each trial and channel.
+    % ----------------------------------------------------------------------------------------------------------------- %
     for eeg_trial_idx = 1:eeg_struct.Num_trials
-        % Speech onset latency is stored in the eeg data structure. 
-        speech_onset_latency = eeg_struct.OnsetLatency(eeg_trial_idx);  
-        speech_offset_latency = speech_onset_latency + speech_epoch_duration;
+        speech_onset_latency = eeg_struct.OnsetLatency(eeg_trial_idx);          % speech onset latency for this trial, in seconds.
+        speech_offset_latency = speech_onset_latency + speech_epoch_duration;   % speech offset latency for this trial, in seconds
         speech_onset_idx = uint64(speech_onset_latency * speech_rawdata.Fs);    % Convert seconds to samples 
         speech_offset_idx = uint64(speech_offset_latency * speech_rawdata.Fs);  % Convert seconds to samples
         % Ensure indices are within bounds
@@ -182,40 +226,35 @@ function [CoherenceResults] = Apply2Dataset_InstaPhaseCoherence(eeg_struct, spee
                                                   highpass_cutoff, lowpass_cutoff, num_samples);
         % Loop through EEG channels
         for ch_idx = 1:eeg_struct.Num_channels
-            eeg_epoch = squeeze(eeg_struct.Data(ch_idx, :, eeg_trial_idx));
-         
-            % If the eeg_epoch is a row vector, convert it to a column vector for the filtering and CSD calculation functions, which expect column vectors as input.
-            eeg_epoch = eeg_epoch(:);
-            % Band-pass filter EEG epoch
-            eeg_epoch_bpf = band_pass_filt(eeg_epoch, eeg_struct.Fs, highpass_cutoff, lowpass_cutoff);
-            % Save the phase coherence values for this trial and channel
-            % in a trials X channels X frequencies matrix.
-
+            eeg_epoch = squeeze(eeg_struct.Data(ch_idx, :, eeg_trial_idx));   % one epoch of EEG data for this trial and channel, as a vector of length Num_samples.
+            eeg_epoch = eeg_epoch(:);  % convert to column vector if it is not already a column vector.
+            eeg_epoch_bpf = band_pass_filt(eeg_epoch, eeg_struct.Fs, highpass_cutoff, lowpass_cutoff);  % bandpass filter EEG epoch
             % Compute instantaneous phase of the EEG signal at each time point in the epoch, 
-            % using the Hilbert transform to get the analytic signal, and then taking the angle of the analytic signal to get the instantaneous phase values.
+            % using the Hilbert transform to get the analytic signal, 
+            % and then taking the angle of the analytic signal to get the instantaneous phase values.
+            % unwrap() is used to remove phase discontinuities and provide a continuous phase signal over time, 
+            % which is important for accurately calculating the phase differences and coherence values.
             eeg_phasevals = unwrap(angle(hilbert(eeg_epoch_bpf)));
-
-            % Phase difference: EEG vs speech
-            % calculated at each time point in the epoch, for each trial and channel, as the difference between the instantaneous phase of the EEG signal and the instantaneous phase of the speech envelope at each time point.
+            % Phase difference: EEG vs. speech
+            % calculated at each time point in the epoch as the difference 
+            % between the instantaneous phase of the EEG signal 
+            % and the instantaneous phase of the speech envelope at each time point.
             phase_diffs = eeg_phasevals - Speech_Struct.phasevals;
             % ------------------------------------------------------------------------
-            % Phase coherence (magnitude of mean vector)
+            % Phase coherence.
             % We calculate the phase coherence values for each trial and channel 
             % as the magnitude of the mean vector of the phase differences across all time points in the epoch. 
-            % This average gives us a measure of how consistent the phase relationship is between the EEG signal and the speech envelope 
-            % across time within that trial and channel.
+            % This average gives us a measure of how consistent the phase relationship is 
+            % between the EEG signal and the speech envelope across time within that trial and channel.
+            % Store the phase coherence values for this trial and channel in the results matrix [num_trials x num_channels]. 
             % ------------------------------------------------------------------------
             phase_coherence_vals(eeg_trial_idx, ch_idx) = abs(mean(exp(1i * phase_diffs)));            
         end
     end
-    % Save trial-level  values in the main results structure.
+
+    % Save trial-level values in the main results structure.
     CoherenceResults.phase_coherence = phase_coherence_vals;   
-    % Instantaneous Phase Coherence values for each trial and channel, saved in the main results structure for reference.  
-    % This is a [NumTrials x NumChannels] matrix, where each value represents the phase coherence for that trial and channel.
-    
     % Average across trials per channel.  
-    % The values are already real-valued magnitudes, 
-    % so we can simply take the mean across trials for each channel to get the average phase coherence value for each channel.
     CoherenceResults.phase_coherence_chanmeans = mean(phase_coherence_vals, 1);
     % Maximum coherence and corresponding channel
     [CoherenceResults.max_val, CoherenceResults.max_chan]  = max(CoherenceResults.phase_coherence_chanmeans);

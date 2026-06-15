@@ -13,7 +13,12 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         options.StartTimeOffset (1,1) double {mustBeReal} = NaN % optional offset to the start time of the analysis epoch, in seconds, relative to the original EEG onset.  
                                                                 % If NaN, use the original EEG onset as the start of the analysis epoch.
         options.EpochDuration (1,1) double {mustBeReal} = NaN   % optional epoch duration, in seconds-- if NaN, use the full length of the EEG epochs as the analysis epoch duration.
+        options.RandomizeOnsets (1,1) logical = false  % optional flag for whether to randomize the onset times of the speech epochs relative to the EEG data.  
+        % If true, the speech onset times will be randomly changed.  
+        % This can be used as a control analysis to test whether any observed entrainment effects are specific to the original alignment of the speech and EEG data, 
+        % or if they could be explained by non-specific temporal correlations.
     end
+
     %--------------------------------------------------------------------------------------%
     % EEG data structure will have a format APPROXIMATELY LIKE THIS:
     % EEG data structure will have this format:
@@ -78,10 +83,12 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         csd_output_file = sprintf("%s/CSD_results_%s.mat", output_dir, eeg_filestem); 
         % If the user specified optional values for the epoching parameters, we pass those to the function, and if they don't, we call the function without those arguments, 
         % and it will default to the full length of the EEG epochs as the analysis epoch duration.    
+
         if isnan(options.StartTimeOffset) || isnan(options.EpochDuration)
-            Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff);
+            Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, RandomizeOnsets=options.RandomizeOnsets);
         else    
-            Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, StartTimeOffset=options.StartTimeOffset, EpochDuration=options.EpochDuration); 
+            Results_CSD_Analysis = Apply2Dataset_CrossSpectralDensity(EEG_struct, Speech_RawData, highpass_cutoff, lowpass_cutoff, ...
+             StartTimeOffset=options.StartTimeOffset, EpochDuration=options.EpochDuration, RandomizeOnsets=options.RandomizeOnsets); 
         end
         % Write each individual subject's result structure, contents of the variable Results_CSD_Analysis, to a file.
         save(csd_output_file, 'Results_CSD_Analysis');
@@ -96,6 +103,14 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         fprintf(fid, 'Low-pass filter cutoff frequency: %d Hz\n', lowpass_cutoff);    % Write the low-pass filter cutoff frequency used for this analysis
         fprintf(fid, 'Epoch start time offset: %d seconds\n', options.StartTimeOffset);  % Write the epoch start time offset used for this analysis
         fprintf(fid, 'Epoch duration: %d seconds\n', options.EpochDuration);      % Write the epoch duration used for this analysis
+        
+        fprintf(fid, 'Randomized onsets status: %d\n', options.RandomizeOnsets);  % Write the status of the randomize onsets flag used for this analysis
+        fprintf(fid, 'Analysis date and time: %s\n', datetime_str);  % Write the date and time when the analysis was run
+        fprintf(fid, 'Analysis script: run_CSD_dataset_list.m\n');  % Write the name of the analysis script used for this analysis
+        fprintf(fid, 'Analysis function: Apply2Dataset_CrossSpectralDensity.m\n');  % Write the name of the analysis function used for this analysis
+    
+        
+
         fclose(fid);  % Close the metadata text file
     end
 end

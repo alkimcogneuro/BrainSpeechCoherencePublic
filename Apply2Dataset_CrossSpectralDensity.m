@@ -24,8 +24,8 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         lowpass_cutoff  (1,1) double {mustBeReal} = 35
         options.StartTimeOffset (1,1) double {mustBeReal} = NaN % optional offset to the start time of the analysis epoch, in seconds, relative to the original EEG onset.  
                                                                 % If NaN, use the original EEG onset as the start of the analysis epoch.
-
         options.EpochDuration (1,1) double {mustBeReal} = NaN   % optional epoch duration, in seconds-- if NaN, use the full length of the EEG epochs as the analysis epoch duration.
+        options.RandomizeOnsets (1,1) logical = false  % optional boolean argument to indicate whether to randomize the speech onset latencies for the analysis, as a control.  
     end
 
     fprintf(' -- Running Cross Spectral Density analysis for subject %s\n', eeg_struct.Subj_id);
@@ -34,7 +34,8 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     fprintf(' -- EEG sampling rate: %d Hz, Speech sampling rate: %d Hz\n', eeg_struct.Fs, speech_rawdata.Fs);
     fprintf(' -- Number of EEG trials: %d, Number of EEG channels: %d\n', eeg_struct.Num_trials, eeg_struct.Num_channels);
     fprintf(' -- Length of EEG epochs (raw data): %d samples (%.2f seconds)\n', size(eeg_struct.Data, 2), size(eeg_struct.Data, 2) / eeg_struct.Fs);    
-    
+    fprintf(' -- RandomizeOnsets: %d\n', options.RandomizeOnsets);
+
     %--------------------------------------------------------------------------------------------------------------------
     % We will check the validity of the optional parameters for epoching, and if they are not valid, throw an error to alert the user to adjust them:
     % 1. If either StartTimeOffset or EpochDuration is provided, then both must be provided, 
@@ -155,6 +156,45 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     % Initialize results matrix: NumTrials x NumChannels
     cross_spectral_density_vals = cell(eeg_struct.Num_trials, eeg_struct.Num_channels);
     speech_epoch_duration = size(eeg_struct.Data, 2) / eeg_struct.Fs;  % speech epoch duration in seconds, calculated from the number of samples in the EEG epochs and the EEG sampling rate.
+    
+    % ------------------------------------------------------------------------------------------------------- %   
+    % Control Analysis.
+    % If the RandomizeOnsets option is true, then we will add a random offset to the speech onset latency for each trial, 
+    % to shift the speech epoch to a different segment of the speech signal that does not correspond to the EEG data for that trial, 
+    % as a control analysis.
+    % ------------------------------------------------------------------------------------------------------- %   
+    if options.RandomizeOnsets
+        fprintf(' -- Randomized onset mode ON: adding random 3-10s offset to speech onset latencies for each trial, to shift speech epochs to different segments of the speech signal that do not correspond to the EEG data for those trials.\n'); 
+        for eeg_trial_idx = 1:eeg_struct.Num_trials
+            % For each trial, we will randomly select a different trial index 
+            % that is at least 2 trials away from the current trial index (eeg_trial_idx).
+            rnd_mismatch_eeg_trial_idx = randi(eeg_struct.Num_trials);
+            while abs(rnd_mismatch_eeg_trial_idx - eeg_trial_idx) < 2  
+                % loop until we get a trial index that satisfies our critrion.
+                rnd_mismatch_eeg_trial_idx = randi(eeg_struct.Num_trials);
+            end
+            eeg_struct.rand_mismatch_indices(eeg_trial_idx) = rnd_mismatch_eeg_trial_idx;  % save the randomly selected mismatching trial index in a new field in the EEG data structure, for reference.
+            % Store the onset latency for this randomly selected trial in a new field in the EEG data structure called RandOnsetLatency, 
+            % which will hold the randomized speech onset latencies for each trial.
+            % set the speech onset latency for this trial to the speech onset latency of the randomly selected trial, to shift the speech epoch to a different segment of the speech signal that does not correspond to the EEG data for this trial. 
+            RandOnsetLatency(eeg_trial_idx) = eeg_struct.OnsetLatency(rnd_mismatch_eeg_trial_idx);  
+        end
+
+        % Save the original speech onset latencies, for record-keeping.  
+        OnsetLatency_Original = eeg_struct.OnsetLatency; 
+        % Overwrite the speech onset latencies in the EEG data structure with the randomized ones, 
+        % so that the rest of the analysis will use the randomized onset latencies.         
+        eeg_struct.OnsetLatency = RandOnsetLatency; 
+        % Add a field to the main results structure to indicate that we used randomized onsets for this analysis, 
+        % and save the original speech onset latencies in the results structure as well, so that we have a record of the original and randomized speech onset latencies for each trial in the results of this analysis, which will be important for interpreting the results of the control analysis and comparing them to the main analysis with the original speech onset latencies.
+        CoherenceResults.RandomizedOnsets = true;
+        CoherenceResults.OnsetLatency_Original = OnsetLatency_Original; % save the original speech onset latencies in the results structure for reference.
+        CoherenceResults.OnsetLatency_Randomized = RandOnsetLatency;    % save the randomized speech onset latencies in the results structure for reference.
+    end    
+    % ----------------------------------------------------------------------------------------------------------------- %
+    % Loop through trials to extract speech epochs and then
+    % compute CSD analysis with EEG data for each trial and channel.
+    % ----------------------------------------------------------------------------------------------------------------- %
     for eeg_trial_idx = 1:eeg_struct.Num_trials
         % Speech onset latency is stored in the eeg data structure. 
         speech_onset_latency = eeg_struct.OnsetLatency(eeg_trial_idx);  
@@ -173,6 +213,9 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         fprintf('run preprocessing for speech epoch: trial %d, speech onset latency = %.2f seconds, speech offset latency = %.2f seconds, number of samples in speech epoch = %d\n', eeg_trial_idx, speech_onset_latency, speech_offset_latency, length(speech_epoch));
         [Speech_Struct] = preprocess_speech_epoch(speech_epoch, speech_rawdata.Fs, ...
                                                   highpass_cutoff, lowpass_cutoff, num_samples);
+        
+        Speech_Struct.envelope = randn(size(Speech_Struct.envelope));  % replace the speech envelope with random noise, for control analysis of CSD values with randomized speech envelopes.
+        
         % Loop through EEG channels
         for ch_idx = 1:eeg_struct.Num_channels
             eeg_epoch = squeeze(eeg_struct.Data(ch_idx, :, eeg_trial_idx));
