@@ -2,16 +2,19 @@ function [] = plot_allchans_MSC_byfreqs(msc_results)
     % arguments
     % -- msc_results is a structure containing the results of the CSD analysis for one subject and one condition.
     % 
-    % The field "MSC_chanmeans" is a [num_channels x num_freqs] matrix, 
-    % in which each element is the mean MSC value for one channel x frequency, averaged across trials.
-   
+    % The field msc_results.MSC_chanmeans is a [num_channels x num_freqs] matrix, 
+    % in which each element is the MSC values, averaged across trials.
+    %
     % Calculate the mean MSC at each frequency, averaged across all channels.
-    % note: We've already calculated the channel means for MSC at each frequency (when we first calculated MSC).
     msc_avg_channel_means = mean(msc_results.MSC_chanmeans, 1);  % Average across channels (dimension 1)    
-    % For each channel, average MSC values within a narrow band of interest.
+
+    % For each channel, we will plot MSC values averaged within a narrow band of interest.
+    % We set the boundaries of that band here. 
     msc_lowerbd_freq = 3;   % lower bound of frequency range of interest
     msc_upperbd_freq = 7;   % upper bound of frequency range of interest
-
+    
+    % freq_idx is a logical array with 1's iff the corresponding value of Freqs is inside the band of interest. 
+    
     freq_idx = (msc_results.Freqs >= msc_lowerbd_freq) & (msc_results.Freqs <= msc_upperbd_freq);  % logical index for frequencies within your band of interest
     % create a [num_channels X num_freqs] matrix of the absolute values of the MSC_chanmeans, 
     % where num_freqs is the number of frequencies in the narrow band of interest (e.g., 3-7 Hz), 
@@ -24,7 +27,7 @@ function [] = plot_allchans_MSC_byfreqs(msc_results)
     msc_avg_withinband_by_channel = double(msc_avg_withinband_by_channel);  % convert to double precision for plotting
     fprintf('msc_avg %.2f - %.2f Hz \n', msc_lowerbd_freq, msc_upperbd_freq);
     disp(msc_avg_withinband_by_channel); % print the average MSC values for each channel, averaged across frequencies within the band of interest, to the command window.
-
+    
     channel_locations = msc_results.Chanlocs;  % grab the channel locations from the CSD results structure, for use in plotting topomap.
     msc_avg_withinband_by_channel = msc_avg_withinband_by_channel(:);   % make sure that we have a column vector, because plot_topomap expects this. 
     % plot_topomap(msc_avg_withinband_by_channel', msc_results.Chanlocs)  % plot the topomap using the coherence values and channel locations from the EEG data file.

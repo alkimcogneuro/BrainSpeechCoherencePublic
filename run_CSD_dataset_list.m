@@ -101,8 +101,8 @@ function [] = run_CSD_dataset_list(eeg_data_filenames, speech_files_path, highpa
         fprintf(fid, 'EEG data file: %s\n', eeg_data_file);  % Write the name of the EEG data file that this results file corresponds to
         fprintf(fid, 'High-pass filter cutoff frequency: %d Hz\n', highpass_cutoff);  % Write the high-pass filter cutoff frequency used for this analysis
         fprintf(fid, 'Low-pass filter cutoff frequency: %d Hz\n', lowpass_cutoff);    % Write the low-pass filter cutoff frequency used for this analysis
-        fprintf(fid, 'Epoch start time offset: %d seconds\n', options.StartTimeOffset);  % Write the epoch start time offset used for this analysis
-        fprintf(fid, 'Epoch duration: %d seconds\n', options.EpochDuration);      % Write the epoch duration used for this analysis
+        fprintf(fid, 'Optional Epoch start time offset: %d seconds\n', options.StartTimeOffset);  % Write the epoch start time offset used for this analysis
+        fprintf(fid, 'Optional Epoch duration: %d seconds\n', options.EpochDuration);      % Write the epoch duration used for this analysis
         
         fprintf(fid, 'Randomized onsets status: %d\n', options.RandomizeOnsets);  % Write the status of the randomize onsets flag used for this analysis
         fprintf(fid, 'Analysis date and time: %s\n', datetime_str);  % Write the date and time when the analysis was run

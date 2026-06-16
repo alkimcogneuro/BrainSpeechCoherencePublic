@@ -187,9 +187,11 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         eeg_struct.OnsetLatency = RandOnsetLatency; 
         % Add a field to the main results structure to indicate that we used randomized onsets for this analysis, 
         % and save the original speech onset latencies in the results structure as well, so that we have a record of the original and randomized speech onset latencies for each trial in the results of this analysis, which will be important for interpreting the results of the control analysis and comparing them to the main analysis with the original speech onset latencies.
-        CoherenceResults.RandomizedOnsets = true;
+        CoherenceResults.RandomizedOnsetsFlag = true;
         CoherenceResults.OnsetLatency_Original = OnsetLatency_Original; % save the original speech onset latencies in the results structure for reference.
         CoherenceResults.OnsetLatency_Randomized = RandOnsetLatency;    % save the randomized speech onset latencies in the results structure for reference.
+    else 
+        CoherenceResults.RandomizedOnsetsFlag = false;
     end    
     % ----------------------------------------------------------------------------------------------------------------- %
     % Loop through trials to extract speech epochs and then
