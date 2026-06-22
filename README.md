@@ -20,17 +20,25 @@ Key functions include
    ## how to write a run script.  
      - you'll create a list of filenames that contains the EEG data files
  
-      `eegfiles = {
- '~/DATA/MyStudy_Data/Condition1epochs/Condition1_struct01.mat', 
-'~/DATA/MyStudy_Data/Condition1epochs/Condition1_struct02.mat',
-'~/DATA/MyStudy_Data/Condition1epochs/Condition1_struct04.mat'}`
-       -   alternatively: 
-       `eegfiles{1} = '~/EntrainmentData/S1_C1_eeg.mat'`
-        `eegfiles{2} = '~/EntrainmentData/S2_C1_eeg.mat'`
-     - `speech_files_path = '~/MYDATA/SpeechFilesEntrainment/';`
-       - tells us where to find the speech .wav files.
+```
+eegfiles = {
+'~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj01.mat', 
+'~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat',
+'~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat'}
+```
+  - alternative syntax:
+```
+eegfiles{1} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj01.mat'`
+eegfiles{2} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat''
+eegfiles{3} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat''
+```
+     - You'll also need to specify the directory containing all speech files needed for the anlaysis.
+     `speech_files_path = '~/MYDATA/SpeechFilesEntrainment/';`
+       - The specified folder should contain all speech files (.wav).
        - The names of the individual .wav files should match the audio_file field in the EEG data structures.
-   
+
+
+# Understanding the analysis functions.
 
   [CSD_one_sided, PSD_speech_one_sided, PSD_eeg_one_sided, MSPC] = CrossSpectralDensity(sig_speech, sig_eeg, nfft) 
 input arguments:
