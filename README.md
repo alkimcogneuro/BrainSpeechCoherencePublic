@@ -1,4 +1,5 @@
-This suite of Matlab code performs brain-speech coherence (aka "entrainment") anlayses. 
+# Brain Speech Coherence Functions
+This suite of Matlab code performs brain-speech coherence (aka "entrainment") anlayses.  
  
 Key functions include
  - CrossSpectralDensity.m
