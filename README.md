@@ -1,8 +1,11 @@
-This repository contains Matlab code for brain-speech entrainment anlayses. 
+# Brain Speech Coherence Functions
+This suite of Matlab code performs brain-speech coherence (aka "entrainment") anlayses.  
  
 Key functions include
- -  CrossSpectralDensity
+ - CrossSpectralDensity.m
  - Apply2Dataset_CrossSpectralDensity.m
+ - run_CSD_dataset.m
+
 # running an analysis
 - `manage_analysis_cross_spectral_density(eeg_data_filenames, speech_files_path, highpass_cutoff, lowpass_cutoff, options)`
 - eeg_data_filenames:  a cell array of strings; each string is a filepath to one EEG data file.
