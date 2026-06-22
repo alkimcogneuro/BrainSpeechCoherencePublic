@@ -2,12 +2,13 @@
 This suite of Matlab code performs brain-speech coherence (aka "entrainment") anlayses.  
  
 Key functions include
- - CrossSpectralDensity.m
+ - run_CSD_dataset_list.m:
+  - acts on a list of filenames, each containing an EEG dataset (one subject, one condition) and runs CSD analysis.  
  - Apply2Dataset_CrossSpectralDensity.m
- - run_CSD_dataset.m
+ - CrossSpectralDensity.m
 
 # running an analysis
-- `manage_analysis_cross_spectral_density(eeg_data_filenames, speech_files_path, highpass_cutoff, lowpass_cutoff, options)`
+- `run_CSD_dataset_list(eeg_data_filenames, speech_files_path, analysis_ID_label, highpass_cutoff, lowpass_cutoff, options)`
 - eeg_data_filenames:  a cell array of strings; each string is a filepath to one EEG data file.
  - speech_files_path:  a string, which provides the path the folder containing the .wav speech files
  - highpass_cutoff:  we will high pass filter the EEG and speech at this cutoff (e.g., 2)
