@@ -29,10 +29,11 @@ function [Speech_Struct] = preprocess_speech_epoch(speech_epoch, fs, highpass_cu
     end
     % We'll always filter the amplitude envelope.
     % The filter parameters will vary, however.
-    % For phase coherence, we'll filter between 4 and 8 Hz, 
+    % For phase coherence, we'll filter between in a band of ~4-8 Hz, 
     % to capture the theta band frequencies that are most relevant for speech processing.
-    % For Cross Spectral Density, we'll filter between 1 and 35 Hz, to capture the full range of frequencies 
-    % that contribute to the speech envelope. After CSD is computed, we will extract the relevant frequency band 
+    % For Cross Spectral Density, we'll filter in a wider band ~2-35 Hz, to capture the full range of frequencies 
+    % that contribute to the speech envelope. 
+    % After CSD is computed, we will extract the relevant frequency band 
     % from the CSD spectrum for our analysis.
     speech_envelope_bpf = band_pass_filt(speech_envelope, fs, highpass_cutoff, lowpass_cutoff);  % filter
     speech_envelope_bpf_downsampled = resample(speech_envelope_bpf, num_samples_reduced, num_samples_speech);     % Downsample to match EEG sampling frequency
@@ -42,8 +43,8 @@ function [Speech_Struct] = preprocess_speech_epoch(speech_epoch, fs, highpass_cu
     %%     in the past, I extracted phase first and then downsampled the phase vector.
     %%     i think that was unnecessary and may even have caused problems.
     Speech_Struct = struct;       % Initialize result variable
-    Speech_Struct.envelope = speech_envelope_bpf_downsampled;
-    Speech_Struct.phasevals = unwrap(angle(hilbert(speech_envelope_bpf_downsampled)));          % Extract phase from the envelope
+    Speech_Struct.envelope = speech_envelope_bpf_downsampled;    % we return the downsampled, band-pass filtered speech envelope, which is what we will use for the entrainment analysis.
+    Speech_Struct.phasevals = unwrap(angle(hilbert(speech_envelope_bpf_downsampled)));          % Extract phase from the (downsampled) envelope
     Speech_Struct.phasevals_rev = unwrap(angle(hilbert(flip(speech_envelope_bpf_downsampled))));% Extract phase from the reversed speech envelope 
     Speech_Struct.fs = fs * (num_samples_reduced / num_samples_speech);  % Calculate the new sampling rate for the speech.
     Speech_Struct.fsorig = fs;        

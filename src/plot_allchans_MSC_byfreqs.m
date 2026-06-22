@@ -13,12 +13,15 @@ function [] = plot_allchans_MSC_byfreqs(msc_results)
     msc_lowerbd_freq = 3;   % lower bound of frequency range of interest
     msc_upperbd_freq = 7;   % upper bound of frequency range of interest
     
-    % freq_idx is a logical array with 1's iff the corresponding value of Freqs is inside the band of interest. 
-    
+    % freq_idx is a logical array, with 1's marking indices for frequencies that are inside the band of interest.
+    % e.g, [0 0 0 1 1 1 1 0 0 0 ] 
+    % When we use freq_idx to index into the MSC values, we'll pull out only values with frequencies
+    % inside the band of interest. 
     freq_idx = (msc_results.Freqs >= msc_lowerbd_freq) & (msc_results.Freqs <= msc_upperbd_freq);  % logical index for frequencies within your band of interest
-    % create a [num_channels X num_freqs] matrix of the absolute values of the MSC_chanmeans, 
+    % Create a [num_channels X num_freqs] matrix of the absolute values of the MSC_chanmeans, 
     % where num_freqs is the number of frequencies in the narrow band of interest (e.g., 3-7 Hz), 
-    % and then average across frequencies within the band of interest (dimension 2), resulting in a vector of length num_channels.
+    % and then average across frequencies within the band of interest (dimension 2), 
+    % resulting in a vector of length num_channels, which holds the mean MSC value at each channel.
     msc_avg_withinband_by_channel = mean(msc_results.MSC_chanmeans(:, freq_idx), 2);  % average across frequencies (dimension 2), resulting in a vector of length num_channels.
 
     % We need to convert the values to double precision for plotting, 
@@ -28,10 +31,9 @@ function [] = plot_allchans_MSC_byfreqs(msc_results)
     fprintf('msc_avg %.2f - %.2f Hz \n', msc_lowerbd_freq, msc_upperbd_freq);
     disp(msc_avg_withinband_by_channel); % print the average MSC values for each channel, averaged across frequencies within the band of interest, to the command window.
     
-    channel_locations = msc_results.Chanlocs;  % grab the channel locations from the CSD results structure, for use in plotting topomap.
+    channel_locations = msc_results.Chanlocs;  % grab channel locations from the CSD results structure, for use in plotting topomap.
     msc_avg_withinband_by_channel = msc_avg_withinband_by_channel(:);   % make sure that we have a column vector, because plot_topomap expects this. 
-    % plot_topomap(msc_avg_withinband_by_channel', msc_results.Chanlocs)  % plot the topomap using the coherence values and channel locations from the EEG data file.
-    call_topoplot_eeglab(msc_avg_withinband_by_channel', msc_results.Chanlocs, 'CSD', 'CSD')  % plot the topomap using the coherence values and channel locations from the EEG data file.
+    call_topoplot_eeglab(msc_avg_withinband_by_channel', msc_results.Chanlocs, 'Mag Sq Coherence', 'MSC')  % plot the topomap using the coherence values and channel locations from the EEG data file.
     % ------------------------------------------------------------------------------ %
     % grab the figure handle for the topoplot that was just created, 
     % and set the title of the figure to indicate the subject ID and condition for this data.
@@ -39,8 +41,8 @@ function [] = plot_allchans_MSC_byfreqs(msc_results)
     % ------------------------------------------------------------------------------ %
     fig_handle = gcf;  % get the current figure handle
     % set the title of the figure to indicate the subject ID and condition for this data.
-    title(sprintf('MSC %.2f - %.2f Hz, Subject %s, Condition %s, ExposureType %s', msc_lowerbd_freq, msc_upperbd_freq, msc_results.Subj_id, msc_results.Block, msc_results.exposure_type));
-    saveas(fig_handle, sprintf('~/Downloads/MSC_topomap_%s_%s_%s_%.2f-%.2fHz.png', msc_results.Subj_id, msc_results.Block, msc_results.exposure_type, msc_lowerbd_freq, msc_upperbd_freq));  % save the figure to a file with a name that includes the subject ID, condition, and frequency range.
+    title(sprintf('MSC %.2f - %.2f Hz, Subject %s, Condition %s', msc_lowerbd_freq, msc_upperbd_freq, msc_results.Subj_id, msc_results.Condition));
+    saveas(fig_handle, sprintf('~/Downloads/MSC_topomap_%s_%s_%.2f-%.2fHz.png', msc_results.Subj_id, msc_results.Condition, msc_lowerbd_freq, msc_upperbd_freq));  % save the figure to a file with a name that includes the subject ID, condition, and frequency range.
     
 
     for freq_idx = 1:length(msc_results.Chanlocs)

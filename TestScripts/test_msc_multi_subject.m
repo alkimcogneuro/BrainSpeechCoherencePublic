@@ -1,0 +1,23 @@
+% matching speech data
+csdoutputfiles = ["/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0001_E_fullrec.mat", 
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0002_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0004_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0005_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0006_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0009_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0010_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0010_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_163933/CSD_results_SE0010_E_fullrec.mat"]
+
+
+% control analysis mismatched speech data.
+csdoutputfiles_randomspeechonset = ["/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0001_E_fullrec.mat", 
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0002_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0004_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0005_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0006_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0009_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0010_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0010_E_fullrec.mat",
+"/Users/aakim/DATA/PseudoLanguageFallon_all_fulldata_files/CSD_Analysis_Results_20260617_164528/CSD_results_SE0010_E_fullrec.mat"]
+
