@@ -41,7 +41,7 @@ eegfiles{3} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat''
        - The specified folder should contain all speech files (e.g., `audiosample21.wav`).
        - The names of the individual .wav files should be recorded in the field `EEG_struct.audio_file` of the EEG data structures.
 
-  - The analysis code assumes that the critical data is in a matlab structure called `EEG_struct`, whose format should as exemplified below:
+  - The analysis code assumes that the critical data is in a matlab structure called `EEG_struct`, whose format should as exemplified below (the structure should have AT LEAST these critical fields; additional fields (e.g., .TriggerIDs are ok too;  they won't mess up the analysis code):
 
 ```
 EEG_struct = 
@@ -55,9 +55,8 @@ EEG_struct =
     Num_channels: 64
      Num_samples: 4000
          Subj_id: '01'
-          TrigID: {1×14 cell}
        Condition: "MyCondition"
-      audio_file: "AudioSample1"
+      audio_file: "SpeechFile1.wav"
     OnsetLatency: [0 4 16 24 32 36 52 64 68 80 88 92 100 104]
 ```
 
