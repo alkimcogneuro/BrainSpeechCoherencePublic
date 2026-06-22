@@ -17,7 +17,9 @@ Key functions include
       - lowpass_cutoff:  upper bound of the pass band for filtering prior to CSD analysis (e.g., 35). 
       - optional StartTimeOffset:  % optional offset to the start time of the analysis epoch, in seconds, relative to the original EEG onset.
       - optional EpochDuration     % optional epoch duration, in seconds-- if NaN, use the full length of the EEG epochs as the analysis epoch duration.
-   ## how to write a run script.  
+
+  ## how to write a run script.  
+     
      - you'll create a list of filenames that contains the EEG data files
  
 ```
@@ -39,7 +41,7 @@ eegfiles{3} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat''
        - The specified folder should contain all speech files (e.g., `audiosample21.wav`).
        - The names of the individual .wav files should be recorded in the field `EEG_struct.audio_file` of the EEG data structures.
 
-  - The analysis code assumes that the critical data is in a matlab structure called `EEG_struct`
+  - The analysis code assumes that the critical data is in a matlab structure called `EEG_struct`, whose format should as exemplified below:
 
 ```
 EEG_struct = 
@@ -59,7 +61,8 @@ EEG_struct =
     OnsetLatency: [0 4 16 24 32 36 52 64 68 80 88 92 100 104]
 ```
 
- - note:  the analysis code `runrun_CSD_dataset_list` will write results file in a folder that includes the date and time of the analysis
+ - Saving the results of MSC analyses. The analysis function `runrun_CSD_dataset_list` will write return resuls as Matlab structures and will also write the results to files in a folder that includes the date and time of the analysis
+ - For example, the results folder CSD_Analysis_Results_CS_matched_speech_2026_0620_1729_58 contains the results for the main analysis of the CS (code switch) condition, with matched speech controls and was created by a run on 2026-06-20 at 17:29:58. 
 
 # Understanding the analysis functions.
 
