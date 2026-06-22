@@ -7,7 +7,7 @@ Key functions include
  - Apply2Dataset_CrossSpectralDensity.m
  - CrossSpectralDensity.m
 
-# running an analysis
+# running an analysis with a script
 - See the script `TestScripts/runscript_MSC_example.m` for an example of how to run MSC analyses on a group of datasets.
   - The main function of this script is to organize data for and run `run_CSD_dataset_list`
     - `run_CSD_dataset_list(eeg_data_filenames, speech_files_path, analysis_ID_label, highpass_cutoff, lowpass_cutoff, options)`
@@ -18,30 +18,30 @@ Key functions include
       - optional StartTimeOffset:  % optional offset to the start time of the analysis epoch, in seconds, relative to the original EEG onset.
       - optional EpochDuration     % optional epoch duration, in seconds-- if NaN, use the full length of the EEG epochs as the analysis epoch duration.
 
-  ## how to write a run script.  
-     
-     - you'll create a list of filenames that contains the EEG data files
+       
+     - the run script will contain a list of filenames that contains the EEG data files
  
 ```
+% example list of EEG data files:
 eegfiles = {
 '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj01.mat', 
 '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat',
 '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat'}
 ```
 
-  - alternative syntax:
+   - alternative syntax:
 ```
 eegfiles{1} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj01.mat'`
 eegfiles{2} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat''
 eegfiles{3} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat''
 ```
      
-  - You'll also need to specify the directory containing all speech files needed for the anlaysis.
+   - You'll also need to specify the directory containing all speech files needed for the anlaysis.
      `speech_files_path = '~/MYDATA/SpeechFilesEntrainment/';`
        - The specified folder should contain all speech files (e.g., `audiosample21.wav`).
        - The names of the individual .wav files should be recorded in the field `EEG_struct.audio_file` of the EEG data structures.
 
-  - **Dataset format**.  The analysis code assumes that each EEG data file (e.g., `Condition1_Subj01.mat` )  is the critical data is in a matlab structure called `EEG_struct`, whose format should as exemplified below (the structure should have AT LEAST these critical fields; additional fields (e.g., .TriggerIDs are ok too;  they won't mess up the analysis code):
+   - **Dataset format**.  The analysis code assumes that each EEG data file (e.g., `Condition1_Subj01.mat` )  is the critical data is in a matlab structure called `EEG_struct`, whose format should as exemplified below (the structure should have AT LEAST these critical fields; additional fields (e.g., .TriggerIDs are ok too;  they won't mess up the analysis code):
 
 ```
 EEG_struct = 
