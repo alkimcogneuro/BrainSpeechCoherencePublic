@@ -26,6 +26,7 @@ eegfiles = {
 '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat',
 '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat'}
 ```
+
   - alternative syntax:
 ```
 eegfiles{1} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj01.mat'`
