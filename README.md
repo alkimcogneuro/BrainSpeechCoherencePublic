@@ -71,6 +71,8 @@ input arguments:
     sig_speech:  vector of speech data (should be same length and sample rate as eeg data--the speech should be downsampled). 
     sig_eeg:    vector of eeg data
     nfft:  the number of points used in the Fourier transform. we'll typically make this equal to the legnth of the signals. 
+   
    # plotting results
-   - see `plot_results_script.m` for an exampple of how to plot topographic maps of the results of MSC analyses
+   - see `TestScripts/plot_results_script.m` for an exampple of how to plot topographic maps of the results of MSC analyses
+   - working now to make this script more transparent and user friendly
     
