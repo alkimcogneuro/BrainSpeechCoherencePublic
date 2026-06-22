@@ -61,8 +61,8 @@ EEG_struct =
     OnsetLatency: [0 4 16 24 32 36 52 64 68 80 88 92 100 104]
 ```
 
- - Saving the results of MSC analyses. The analysis function `runrun_CSD_dataset_list` will write return resuls as Matlab structures and will also write the results to files in a folder that includes the date and time of the analysis
- - For example, the results folder CSD_Analysis_Results_CS_matched_speech_2026_0620_1729_58 contains the results for the main analysis of the CS (code switch) condition, with matched speech controls and was created by a run on 2026-06-20 at 17:29:58. 
+   - Saving the results of MSC analyses. The analysis function `runrun_CSD_dataset_list` will write return resuls as Matlab structures and will also write the results to files in a folder that includes the date and time of the analysis
+     - For example, the results folder CSD_Analysis_Results_Condition1_matched_speech_2026_0620_1729_58 contains the results for the main analysis of the condition 'Condition1', with matched speech controls and was created by a run on 2026-06-20 at 17:29:58. 
 
 # Understanding the analysis functions.
 
