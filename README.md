@@ -33,10 +33,31 @@ eegfiles{1} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj01.mat'`
 eegfiles{2} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat''
 eegfiles{3} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat''
 ```
+     
      - You'll also need to specify the directory containing all speech files needed for the anlaysis.
      `speech_files_path = '~/MYDATA/SpeechFilesEntrainment/';`
-       - The specified folder should contain all speech files (.wav).
-       - The names of the individual .wav files should match the audio_file field in the EEG data structures.
+       - The specified folder should contain all speech files (e.g., `audiosample21.wav`).
+       - The names of the individual .wav files should be recorded in the field `EEG_struct.audio_file` of the EEG data structures.
+
+  - The analysis code assumes that the critical data is in a matlab structure called `EEG_struct`
+
+```
+EEG_struct = 
+
+  struct with fields:
+
+            Data: [64×4000×14 single]
+        Chanlocs: [1×64 struct]
+              Fs: 1000
+      Num_trials: 14
+    Num_channels: 64
+     Num_samples: 4000
+         Subj_id: '01'
+          TrigID: {1×14 cell}
+       Condition: "MyCondition"
+      audio_file: "AudioSample1"
+    OnsetLatency: [0 4 16 24 32 36 52 64 68 80 88 92 100 104]
+```
 
 
 # Understanding the analysis functions.
