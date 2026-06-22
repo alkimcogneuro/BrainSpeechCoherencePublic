@@ -34,7 +34,7 @@ eegfiles{2} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj02.mat''
 eegfiles{3} = '~/DATA/MyStudy_Data/Condition1epochs/Condition1_Subj03.mat''
 ```
      
-     - You'll also need to specify the directory containing all speech files needed for the anlaysis.
+  - You'll also need to specify the directory containing all speech files needed for the anlaysis.
      `speech_files_path = '~/MYDATA/SpeechFilesEntrainment/';`
        - The specified folder should contain all speech files (e.g., `audiosample21.wav`).
        - The names of the individual .wav files should be recorded in the field `EEG_struct.audio_file` of the EEG data structures.
@@ -59,6 +59,7 @@ EEG_struct =
     OnsetLatency: [0 4 16 24 32 36 52 64 68 80 88 92 100 104]
 ```
 
+ - note:  the analysis code `runrun_CSD_dataset_list` will write results file in a folder that includes the date and time of the analysis
 
 # Understanding the analysis functions.
 
@@ -67,3 +68,6 @@ input arguments:
     sig_speech:  vector of speech data (should be same length and sample rate as eeg data--the speech should be downsampled). 
     sig_eeg:    vector of eeg data
     nfft:  the number of points used in the Fourier transform. we'll typically make this equal to the legnth of the signals. 
+   # plotting results
+   - see `plot_results_script.m` for an exampple of how to plot topographic maps of the results of MSC analyses
+    
