@@ -109,13 +109,8 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
     end
     
     all_results_file = sprintf("%s/All_Results_CSD_Analysis.mat", output_dir);  % Create a filename for the All_Results_CSD_Analysis structure, which will be saved to a .mat file in the output directory.
-    save(sprintf(all_results_file, output_dir), 'All_Results_CSD_Analysis');    % Save the All_Results_CSD_Analysis structure to a .mat file in the output directory.
+    save(all_results_file, 'All_Results_CSD_Analysis');    % Save the All_Results_CSD_Analysis structure to a .mat file in the output directory.
             
-        % We write a sidecar file to accompany each results file, 
-        % which records information about the analysis parameters (e.g., filter parameters, epoching parameters, etc.) that we want to keep track of.
-        % The sidecar file is in text format for easy viewing and sharing, and it has the same name as the results file but with "_metadata.txt" appended to the end of the filename.
-    result_file_list_txt = sprintf("%s/CSD_result_file_list.txt", output_dir);  % Create a filename for the metadata text file, which has the same name as the results file but with "_metadata.txt" appended to the end of the filename.
-
     % Save meta data for this run.
     % this will include:
     %   -- the list of results files
@@ -149,8 +144,6 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
     for result_idx = 1:length(result_file_list)
        fprintf(fid, '%s\n', result_file_list{result_idx});  % Write the name of the EEG data file that this results file corresponds to
     end
-
-    % print the final result file 
     fprintf(fid, 'All results files saved to: %s\n', all_results_file);  % Print the name of the file that contains all the results for this run of the analysis
     fclose(fid);  % Close the metadata text file
 
