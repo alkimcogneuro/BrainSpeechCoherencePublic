@@ -20,7 +20,7 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
         % This can be used as a control analysis to test whether any observed entrainment effects are specific to the original alignment of the speech and EEG data, 
         % or if they could be explained by non-specific temporal correlations.
     end
-
+    fprintf('Running run_CSD_dataset_list() for %d EEG data files, with highpass cutoff %.2f Hz and lowpass cutoff %.2f Hz\n', length(eeg_data_filenames), highpass_cutoff, lowpass_cutoff);
     %--------------------------------------------------------------------------------------%
     % EEG data structure will have a format APPROXIMATELY LIKE THIS:
     % EEG data structure will have this format:
@@ -48,6 +48,8 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
     if ~exist(output_dir, 'dir')  % Check if the output folder already exists; it should ont, because we just made up the new folder name using the current date and time, but we check just in case.
         mkdir(output_dir);  % if the output folder does not exist, create it
     end
+    fprintf('   Output directory for CSD results: %s\n', output_dir);  % print the output directory to the command window
+
     %------------------------------------------------------------------------------------------------------%    
     % Iterate through all the EEG data files.
     % Run Apply2Dataset_CrossSpectralDensity() for each one, using the corresponding speech data. 
@@ -83,10 +85,9 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
         % We create a filename, csd_output_file for saving the analysis results.  
         % The filename will include the EEG data structure filename, which records the subject ID and some condition information. 
         % --------------------------------------------------------------------------------------%
-        csd_output_file = sprintf("%s/CSD_results_%s.mat", output_dir, eeg_filestem);
+        csd_output_file = fullfile(output_dir, sprintf("CSD_results_%s.mat", eeg_filestem));   
         result_file_list = [result_file_list, csd_output_file];  % collect results in this list, which will be returned as the output of this function.
-        disp(csd_output_file);
-        
+            
         % If the user specified optional values for the epoching parameters, we pass those to the function, and if they don't, we call the function without those arguments, 
         % and it will default to the full length of the EEG epochs as the analysis epoch duration.    
 
@@ -108,7 +109,7 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
         All_Results_CSD_Analysis(idx).Results_CSD_Analysis = Results_CSD_Analysis;  % Save the results for this subject and condition into the All_Results_CSD_Analysis structure, which will be saved to a file at the end of the function.
     end
     
-    all_results_file = sprintf("%s/All_Results_CSD_Analysis.mat", output_dir);  % Create a filename for the All_Results_CSD_Analysis structure, which will be saved to a .mat file in the output directory.
+    all_results_file = fullfile(output_dir, "All_Results_CSD_Analysis.mat");  % Create a filename for the All_Results_CSD_Analysis structure, which will be saved to a .mat file in the output directory.
     save(all_results_file, 'All_Results_CSD_Analysis');    % Save the All_Results_CSD_Analysis structure to a .mat file in the output directory.
             
     % Save meta data for this run.
@@ -120,8 +121,8 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
     %   -- the date and time when the analysis was run, which will be useful for keeping track of different runs of the analysis,
     %  -- the name of the analysis script and function used for this analysis, which will be useful for keeping track of the code that was used to generate the results,
     % and any other parameters that we want to keep track of for this analysis.  
-    metadata_output_file_txt = sprintf("%s/CSD_results_Metadata.txt", output_dir);  % Create a filename for the metadata text file for this run
-    fid = fopen(metadata_output_file_txt, 'w');  % Open the metadata text file for writing
+    metadata_output_file = fullfile(output_dir, "CSD_results_Metadata.txt");  % Create a filename for the metadata text file for this run
+    fid = fopen(metadata_output_file, 'w');  % Open the metadata text file for writing
     fprintf(fid, 'Metadata for Cross Spectral Density (and Magnitude Squared Coherence) Analysis\n\n');  % 
     fprintf(fid, 'High-pass filter cutoff frequency: %.2f Hz\n', highpass_cutoff);  % Write the high-pass filter cutoff frequency used for this analysis
     fprintf(fid, 'Low-pass filter cutoff frequency: %.2f Hz\n', lowpass_cutoff);    % Write the low-pass filter cutoff frequency used for this analysis
