@@ -102,7 +102,7 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         end
         % The StartTimeOffset must be less than or equal to the EpochDuration, because if the offset is greater than the epoch duration, then we'd be asking to offset the speech onset to a time that is after the end of the EEG epoch, which would lead to misalignment between the speech and EEG epochs.
         if ~isnan(options.StartTimeOffset) && ~isnan(options.EpochDuration) && (options.StartTimeOffset > options.EpochDuration)
-             error('The specified StartTimeOffset of %.2f seconds is greater than the specified EpochDuration of %.2f seconds. Please adjust the StartTimeOffset to be less than or equal to the EpochDuration, because if the offset is greater than the epoch duration, it offsets the speech onset to a time that is after the end of the EEG epoch, which would lead to misalignment between the speech and EEG epochs.', options.StartTimeOffset, options.EpochDuration);
+            error('The specified StartTimeOffset of %.2f seconds is greater than the specified EpochDuration of %.2f seconds. Please adjust the StartTimeOffset to be less than or equal to the EpochDuration, because if the offset is greater than the epoch duration, it offsets the speech onset to a time that is after the end of the EEG epoch, which would lead to misalignment between the speech and EEG epochs.', options.StartTimeOffset, options.EpochDuration);
         end
         % If the user provided a StartTimeOffset and EpochDuration, then we will 
         % adjust the EEG data structure to only include the samples in the specified range relative to the original EEG onset.  
