@@ -4,7 +4,7 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     % 
     % Arguments:
     %   eeg_struct:     structure containing EEG data and metadata, including pointers to speech file and onset latencies of critical speech events. 
-    %   speech_rawdata: structure containing raw speech data and metadata
+    %   speech_rawdata: structure containing raw speech data (full contents of one speech file) and metadata
     %   highpass_cutoff: high-pass filter cutoff frequency (Hz)
     %   lowpass_cutoff:  low-pass filter cutoff frequency (Hz)
     %   optional, StartTimeOffset:  If user wants the analysis epoch to begin after the onsets recorded in the EEG Data atructure
@@ -19,9 +19,6 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     % Returns:
     %   CoherenceResults: structure containing results
     % 
-    % functionality to add:
-    % think about how to flexibly adjust the width of the analysis epochs for speech and eeg
-    % we may need to use sub-sections of the epochs that are provided.
     % Returns a structure CoherenceResults, which contains the following fields
     %  --  .CSD_chanmeans: a [num_channels X num_frequencies] matrix containing the average CSD values across trials, for each channel and frequency bin.
     %  --  .PSD_speech_chanmeans: a [num_channels X num_frequencies] matrix containing the average power spectral density values for the speech signal across trials, for each channel and frequency bin.
@@ -138,14 +135,22 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         fprintf(' -- No optional parameters for epoching provided; using full length of EEG epochs for analysis.\n');
     end
 
+    % Check EEG_struct.OnsetLatency to make sure that all onset latencies are real numbers and not NaNs.
+    if any(isnan(eeg_struct.OnsetLatency))
+        error('EEG_struct.OnsetLatency contains NaN values. Please check the EEG data structure and ensure that all onset latencies are valid real numbers.');
+    end
+    
+
     % The data matrix should be [num_channels x num_samples x num_trials]
     Num_channels = size(eeg_struct.Data, 1);  
     Num_samples_eeg = size(eeg_struct.Data, 2);  % the number of samples in the EEG epochs after any optional adjustments to the epoch duration.  This will be used to determine the duration of the speech epochs and to set the nfft parameter for the CSD calculation.
     Num_trials = size(eeg_struct.Data, 3);
     fprintf(' -- Number of samples in EEG epochs: %d samples (%.2f seconds)\n', Num_samples_eeg, (Num_samples_eeg / eeg_struct.Fs));
     
-    % If the EEG data has more than 64 channels, get rid of all channels beyond the first 64, to match the number of channels in the other datasets and to focus on the standard 64-channel montage for this analysis.
-    % this is for Ren's data, which has 74 channels. 
+    % If the EEG data has more than 64 channels, get rid of all channels beyond the first 64, 
+    % to match the number of channels in the other datasets and to focus on the standard 64-channel montage for this analysis.
+    % NOTE:  we should change the code to be more flexible about the number of channels, 
+    % but for now, we will restrict to 64 channels to match the other datasets and the standard montage.
     if Num_channels > 64
         fprintf(' -- EEG data has %d channels, which is more than 64. Restricting analysis to the first 64 channels to match the standard montage and other datasets.\n', Num_channels);
         eeg_struct.Data = eeg_struct.Data(1:64, :, :);  % keep only the first 64 channels
@@ -194,14 +199,17 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     speech_epoch_duration_samples = round(speech_epoch_duration_seconds * speech_rawdata.Fs);  % convert speech duration from seconds to samples (at the speech sample rate)
                                                                                             % we round, in case the result is non-integer.
     % ------------------------------------------------------------------------------------------------------- %   
-    % Control Analysis.
+    % CONTROL ANALYSIS.
     % If the RandomizeOnsets option is true, then we will add a random offset to the speech onset latency for each trial, 
     % to shift the speech epoch to a different segment of the speech signal that does not correspond to the EEG data for that trial, 
     % as a control analysis.
     % ------------------------------------------------------------------------------------------------------- %   
     if options.RandomizeOnsets
         fprintf(' -- Randomized onset mode ON: adding 4s offset to speech onset latencies for each trial, to shift speech epochs to different segments of the speech signal that do not correspond to the EEG data for those trials.\n'); 
-        for eeg_trial_idx = 1:eeg_struct.Num_trials
+        RandOnsetLatency = derange(eeg_struct.OnsetLatency);  % scramble the order of the original onset latencies, every trial has a the onset associated with a different trial.
+ 
+        %{
+         for eeg_trial_idx = 1:eeg_struct.Num_trials
             % To randomize the speech epoch associated with each EEG trial, we will shift the speech onset latency for each trial 
             % by borrowing the onset latency from a different trial, 
             % We'll collect those new onset latencies in RandOnsetLatency, which will be the same length as the number of trials, 
@@ -228,8 +236,9 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
             %     RandOnsetLatency(eeg_trial_idx) = current_latency - 4;  % shift backward by 4 seconds.
             % end
             %-------------------------------------------------------------------------------%
+        end 
+%}
 
-        end
         % Save the original speech onset latencies, for record-keeping.  
         OnsetLatency_Original = eeg_struct.OnsetLatency; 
         % Overwrite the speech onset latencies in the EEG data structure with the randomized ones, 
@@ -261,6 +270,7 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
     psd_speech = zeros(Num_trials, Num_channels, num_freqs);    % psd values for the speech signal for each trial, channel, and frequency bin
     psd_eeg = zeros(Num_trials, Num_channels, num_freqs);       % psd values for the EEG signal for each trial, channel, and frequency bin
     num_speech_samples = length(speech_rawdata.Amplitudes);     % total length of the speech recording, in samples; used to validate that each trial's speech epoch falls entirely within the recording.
+%%    for eeg_trial_idx = 2:eeg_struct.Num_trials  
     for eeg_trial_idx = 1:eeg_struct.Num_trials  
         % Speech onset latency is stored in the eeg data structure. 
         speech_onset_latency = eeg_struct.OnsetLatency(eeg_trial_idx);          % onset latency in seconds
@@ -269,7 +279,6 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
         else
             speech_onset_idx = round(speech_onset_latency * speech_rawdata.Fs);     % Convert seconds to samples
         end
-
         speech_offset_idx = speech_onset_idx + speech_epoch_duration_samples-1; % offset is always the same for this dataset. 
         % ------------------------------------------------------------------------------------------------------------
         % Validate that the speech epoch for this trial falls entirely within the bounds of the speech recording.
@@ -295,6 +304,8 @@ function [CoherenceResults] = Apply2Dataset_CrossSpectralDensity(eeg_struct, spe
                 num_speech_samples / speech_rawdata.Fs, speech_onset_latency, ...
                 speech_epoch_duration_samples / speech_rawdata.Fs, speech_epoch_duration_samples);
         end
+
+        fprintf("speech onset index: %d, speech offset index: %d, speech epoch duration in samples: %d\n", speech_onset_idx, speech_offset_idx, speech_epoch_duration_samples);
         speech_epoch = speech_rawdata.Amplitudes(speech_onset_idx:speech_offset_idx);  % extract the speech epoch.
         % Prepare the speech for coherence analysis
         % Extract amplitude envelope, bandpass filter, downsample, save phase and magnitude information. 
