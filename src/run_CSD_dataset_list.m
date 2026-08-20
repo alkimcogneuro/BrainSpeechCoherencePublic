@@ -39,16 +39,29 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
     %           Subj_id: 'SE0001'           
     %      Num_channels: 64
     %--------------------------------------------------------------------------------------%
+    
     % Create a folder for the results of this analysis, 
-    % which will hold the results files for analysis of all files in the list eeg_data_filenames
-    datetime_str = char(datetime('now', 'Format', 'yyyy_MMdd_HHmm_ss'));
-    results_foldername = sprintf('CSD_Analysis_Results_%s_%s', analysis_ID_label, datetime_str);  % folder name for results files
-    % grab the path to the first EEG data file in the list, and use that to create a path for the output folder, which will be in the same directory as the EEG data files.
-    output_dir = fullfile(fileparts(eeg_data_filenames{1}), results_foldername);  % create a path for the output folder, which is in the same directory as the EEG data files.
-    if ~exist(output_dir, 'dir')  % Check if the output folder already exists; it should ont, because we just made up the new folder name using the current date and time, but we check just in case.
-        mkdir(output_dir);  % if the output folder does not exist, create it
-    end
+    results_foldername = sprintf('CSD_Analysis_Results_%s', analysis_ID_label);   % create directory name
+    output_dir = fullfile(fileparts(eeg_data_filenames{1}), results_foldername);    % add path
+    % Make sure the output directory does not already exist, and if it does, rename the existing directory 
+    % by appending "_gen[x]" to the name, where [x] is a number that increments until we find a folder name that does not already exist.
+    if exist(output_dir, 'dir')
+        gen_counter = 1;
+        stop_flag = false;
+        while ~stop_flag
+            backup_foldername = sprintf('CSD_Analysis_Results_%s_gen%d', analysis_ID_label, gen_counter);  % add the "_gen[x]" suffix to the folder name
+            backup_output_dir = fullfile(fileparts(eeg_data_filenames{1}), backup_foldername);  % rename the existing output directory to this new name
+            if ~exist(backup_output_dir, 'dir')
+                movefile(output_dir, backup_output_dir);    % rename the existing output directory to the new name
+                fprintf('   Found existing results folder with same name and renamed to: %s\n', backup_foldername);
+                stop_flag = true;   % once we've renamed the existing folder, we can break out of the loop and create the new output directory.
+            end
+            gen_counter = gen_counter + 1;  % increment the counter for the next iteration of the loop, so we can try a new folder name if the previous one already exists.
+        end
+    end    
+    mkdir(output_dir);          % make the output directory for the results of this analysis. 
     fprintf('   Output directory for CSD results: %s\n', output_dir);  % print the output directory to the command window
+
     %------------------------------------------------------------------------------------------------------%    
     % Iterate through all the EEG data files.
     % Run Apply2Dataset_CrossSpectralDensity() for each one, using the corresponding speech data. 
@@ -126,16 +139,16 @@ function [result_file_list] = run_CSD_dataset_list(eeg_data_filenames, speech_fi
     %  -- the name of the analysis script and function used for this analysis, which will be useful for keeping track of the code that was used to generate the results,
     % and any other parameters that we want to keep track of for this analysis.  
     %---------------------------------------------------------------------------------------------------------%            
-
+    datetime_str = char(datetime('now', 'Format', 'yyyy-MM-dd HH:mm:ss'));
     metadata_output_file = fullfile(output_dir, "CSD_results_Metadata.txt");  % Create a filename for the metadata text file for this run
     fid = fopen(metadata_output_file, 'w');  % Open the metadata text file for writing
     fprintf(fid, 'Metadata for Cross Spectral Density (and Magnitude Squared Coherence) Analysis\n\n');  % 
+    fprintf(fid, 'Analysis Date and Time: %s\n', datetime_str);  % Write the date and time when the analysis was run
     fprintf(fid, 'High-pass filter cutoff frequency: %.2f Hz\n', highpass_cutoff);  % Write the high-pass filter cutoff frequency used for this analysis
     fprintf(fid, 'Low-pass filter cutoff frequency: %.2f Hz\n', lowpass_cutoff);    % Write the low-pass filter cutoff frequency used for this analysis
     fprintf(fid, 'Optional Epoch start time offset: %d seconds\n', options.StartTimeOffset);  % Write the epoch start time offset used for this analysis
     fprintf(fid, 'Optional Epoch duration: %d seconds\n', options.EpochDuration);      % Write the epoch duration used for this analysis
     fprintf(fid, 'Randomized onsets status: %d\n', options.RandomizeOnsets);  % Write the status of the randomize onsets flag used for this analysis
-    fprintf(fid, 'Analysis date and time: %s\n', datetime_str);  % Write the date and time when the analysis was run
     fprintf(fid, 'Analysis script: run_CSD_dataset_list.m\n');  % Write the name of the analysis script used for this analysis
     fprintf(fid, 'Analysis function: Apply2Dataset_CrossSpectralDensity.m\n');  % Write the name of the analysis function used for this analysis    
 
