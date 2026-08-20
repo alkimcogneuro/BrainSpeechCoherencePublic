@@ -2,18 +2,19 @@ function [MSC_band, band_freqs, band_bin_idx] = BandAverageMSC(CoherenceResults,
     % =========================================================================================
     % Band-Averaged Magnitude Squared Coherence (MSC)
     % =========================================================================================
-    % Collapse a CoherenceResults structure's per-frequency MSC_chanmeans down to a single MSC
-    % value per channel, within a specified frequency band (e.g., 4-8 Hz).
-    %
-    % The MSC values we compute in Apply2Dataset_CrossSpectralDensity are specified for every frequency bin, 
-    % but often we want a single summary value for a given frequency band (e.g., 3-8 Hz). 
-    % This function takes the per-frequency MSC_chanmeans values and collapses them down to one MSC value per channel, within the requested frequency band.
+    % 
+    % This function averages the magnitude squared coherence (MSC) values across a specified frequency band, producing one MSC value per channel.
+    % 
+    % The MSC values computed by Apply2Dataset_CrossSpectralDensity are specified for every frequency bin. 
+    % We will collapse the MSC values from all bins within a target band (e.g., 3-8 Hz) 
+    % into a single value. 
+    % This is done for each channel separately, producing a vector of MSC values, one per channel.
     % 
     % Arguments:
     %   CoherenceResults: a results structure produced by Apply2Dataset_CrossSpectralDensity,
-    %                      containing (at minimum) the fields CSD_chanmeans, PSD_speech_chanmeans,
-    %                      PSD_eeg_chanmeans (each [Num_channels x num_freqs]), and Freqs
-    %                      ([1 x num_freqs] or [num_freqs x 1]).
+    %                      containing (at minimum) the fields CSD_chanmeans, MSC_chanmeans, PSD_speech_chanmeans,
+    %                      PSD_eeg_chanmeans (each of these is [Num_channels x num_freqs]), 
+    %                       and Freqs ([1 x num_freqs] or [num_freqs x 1]).
     %   band_low:  lower edge of the frequency band of interest, in Hz (inclusive).
     %   band_high: upper edge of the frequency band of interest, in Hz (inclusive).
     %
@@ -83,27 +84,29 @@ function [MSC_band, band_freqs, band_bin_idx] = BandAverageMSC(CoherenceResults,
     % which may not be what the user expects, especially for narrow bands or low-resolution nfft.
     if numel(band_bin_idx) == 1
         warning('BandAverageMSC:SingleBinBand', ...
-            ['Only one frequency bin (%.3f Hz) falls within [%.2f, %.2f] Hz. The "band average" is ' ...
-             'therefore just that single bin''s value. Consider whether nfft/frequency resolution ' ...
-             'is fine enough for this band, or whether the band edges should be widened.'], ...
-            band_freqs(1), band_low, band_high);
+        ['Only one frequency bin (%.3f Hz) falls within [%.2f, %.2f] Hz. The "band average" is ' ...
+        'therefore just that single bin''s value. Consider whether nfft/frequency resolution ' ...
+        'is fine enough for this band, or whether the band edges should be widened.'], ...
+        band_freqs(1), band_low, band_high);
     end
-    
-    if options.AvgMethod == "power-weighted"
-        PSD_geom_mean = sqrt(CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);  % geometric mean of the PSDs for each channel, [Num_channels x 1]
-        MSC_power_wt = (CoherenceResults.MSC_chanmeans .* PSD_geom_mean);  %  [Num_channels x num_freqs] 
-        MSC_power_wt_norm_band = sum(MSC_power_wt(:, band_bin_idx), 2) ./ sum(PSD_geom_mean(:, band_bin_idx), 2);
-        % [Num_channels x 1]
-        % are you sure I need the squaring in the denominator in the line above?
-        % 
-        MSC_band = MSC_power_wt_norm_band;
+    % --------------------------------------------------------------------------------------------------------
+    % Average the MSC values across the frequency bins within the band, for each channel.
+    % The averaging method (power=weighted, simple) is specified by options.AvgMethod.
+    % 
+    % The MSC values for each frequency bin have already computed by Apply2Dataset_CrossSpectralDensity, 
+    % and stored in CoherenceResults.MSC_chanmeans, which is a [Num_channels x num_freqs] matrix.
+    % so we can just select the columns corresponding to the band bins, and average across those columns for each row (channel).    
+    % We will return MSC_band, which is a real-valued vector of length Num_channels, with one band average MSC value per channel.
+    % --------------------------------------------------------------------------------------------------------
+    if options.AvgMethod == "power-weighted"        % default averaging method
+        PSD_geom_mean = sqrt(CoherenceResults.PSD_speech_chanmeans .* CoherenceResults.PSD_eeg_chanmeans);  % Geometric mean of the speech&eeg PSDs for each channel, [Num_channels x 1]
+        MSC_power_wt = (CoherenceResults.MSC_chanmeans .* PSD_geom_mean);  % Weight the MSC values at each freq bin by the PSD channel means, [Num_channels x num_freqs]
+                                                                           % [Num_channels x num_freqs] .* [Num_channels x 1] = [Num_channels x num_freqs]
+        MSC_power_wt_norm_band = sum(MSC_power_wt(:, band_bin_idx), 2) ./ sum(PSD_geom_mean(:, band_bin_idx), 2);  % Sum over the band bins, then normalize by the sum of the PSD geometric mean over the same band bins.
+        MSC_band = MSC_power_wt_norm_band;      % set the return value to the power-weighted average MSC for each channel, [Num_channels x 1]
     elseif options.AvgMethod == "simple"
-        % just average the MSC values across the frequency bins within the band, for each channel.
-        % The MSC values for each frequency bin was already computed by Apply2Dataset_CrossSpectralDensity, 
-        % and stored in CoherenceResults.MSC_chanmeans, which is a [Num_channels x num_freqs] matrix.
-        MSC_band = mean(CoherenceResults.MSC_chanmeans(:, band_bin_idx), 2);  % [Num_channels x 1]
-        % ---- Compute one MSC value per channel from the band-averaged spectra ----------------
-        % MSC_band is a real-valued vector of length Num_channels, with one MSC value per channel, computed from the band-averaged CSD and PSD values for that channel.
+        % Just average the MSC values across the frequency bins within the band, for each channel.
+        MSC_band = mean(CoherenceResults.MSC_chanmeans(:, band_bin_idx), 2);  % Set the return value to the simple average MSC for each channel, [Num_channels x 1]
     else
         error('BandAverageMSC:InvalidAvgMethod', ...
             'Unknown AvgMethod "%s". Valid options are "power-weighted" or "simple".', options.AvgMethod);
@@ -116,7 +119,6 @@ function [MSC_band, band_freqs, band_bin_idx] = BandAverageMSC(CoherenceResults,
     PSD_eeg_band    = mean(CoherenceResults.PSD_eeg_chanmeans(:, band_bin_idx), 2);      % real,    [Num_channels x 1]
     MSC_band = abs(CSD_band).^2 ./ (PSD_speech_band .* PSD_eeg_band);        
 %}
-   
     % ---- Flag (but do not silently hide) any NaN/Inf results -----------------------------
     % A NaN here means PSD_speech_band or PSD_eeg_band was zero (or both) for that channel,
     % which most likely indicates a degenerate trial somewhere upstream contaminated the
